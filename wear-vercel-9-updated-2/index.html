@@ -1,0 +1,3860 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>WEAR — In-Sight OS</title>
+<meta name="description" content="관측세의 시대를 위한 AI 아이웨어, WEAR의 In-Sight OS 인터랙티브 프로토타입" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Archivo+Narrow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+:root{
+  --bg:#000000;
+  --lens:#000000;
+  --line:#1C1E1B;
+  --line2:#2A2C29;
+  --text:rgba(255,255,255,.85);
+  --muted:#8C8F89;
+  --dim:#5A5D57;
+  --faint:#343631;
+  --amber:#CD432C;
+  --amber-dim:#6d2418;
+  --rust:#CD432C;
+  --teal:#8C8F89;
+  --hl2:#8C8F89;          /* 두 번째 하이라이트 — 호버 */
+  --sans: Pretendard, -apple-system, BlinkMacSystemFont, sans-serif;
+  /* 라틴·숫자는 JetBrains Mono, 한글 글리프는 Pretendard 로 폴백된다 */
+  --mono: 'JetBrains Mono', Pretendard, ui-monospace, 'SF Mono', Consolas, monospace;
+  /* 영문 전용 — 로컬에 Gentle Monster가 설치돼 있으면 그것을 쓴다 */
+  --eng: 'GentleMonster', 'Gentle Monster', 'GentleMonster-Condensed',
+         'Archivo Narrow', Pretendard, sans-serif;  /* 한글은 Pretendard */
+  --title-size: 36px;
+}
+
+/* 로컬에 설치된 Gentle Monster를 자동으로 집어온다.
+   라이선스 파일이 따로 있으면 아래 url() 줄의 주석을 풀고 경로만 넣으면 된다. */
+@font-face{
+  font-family:'GentleMonster';
+  src: local('GentleMonster'), local('GentleMonster-Condensed'), local('Gentle Monster');
+  /* src: url('./GentleMonster-Condensed.woff2') format('woff2'); */
+  font-display:swap;
+}
+
+/* 영문·숫자는 --eng, 한글은 --sans 로 자동 분리 */
+.eng, .panel-title, #sysMenu li .k, .corner-brand,
+.hud-readout .rv, .readout-cell .rv, .stat-row span:last-child,
+.invoice-row span:last-child, .flt-meta, .big-metric, .pbar-legend,
+.hold-compare, .cam-chip .eb, .calib-num, .calib-eng{
+  font-family:var(--eng);
+  font-feature-settings:'tnum' 1;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{
+  margin:0; padding:0; height:100%; background:var(--bg); color:var(--text);
+  font-family:var(--sans); overflow:hidden; user-select:none;
+  -webkit-user-select:none;
+}
+#app{ position:fixed; top:0; right:0; bottom:0; left:0; }
+
+/* ---------- shared bits ---------- */
+.voice-line{ font-size:var(--title-size); font-weight:600; line-height:1.35; letter-spacing:-.01em;
+  color:var(--text); max-width:640px; margin:0 auto 18px; text-align:center; opacity:0; animation:riseIn .9s ease forwards; }
+.voice-line.dim{ color:var(--muted); font-size:14px; font-weight:400; line-height:1.7; letter-spacing:0; }
+@keyframes riseIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+.micro{ font-size:11.5px; color:var(--dim); text-align:center; margin-top:26px; max-width:420px; margin-left:auto; margin-right:auto; line-height:1.7; }
+.ghost-btn{
+  display:block; margin:34px auto 0; background:transparent; border:1px solid currentColor;
+  color:var(--text); font-family:var(--sans); font-size:13px; padding:10px 26px; border-radius:999px;
+  cursor:pointer; letter-spacing:.02em; transition:color .2s;
+}
+.ghost-btn:hover{ color:var(--amber); }
+.ghost-btn:focus-visible{ outline:1px solid var(--amber); outline-offset:3px; }
+.ghost-btn.reject{ color:var(--muted); }
+.ghost-btn:disabled{ opacity:.3; cursor:default; color:var(--muted); }
+.ghost-btn:disabled:hover{ color:var(--muted); }
+.amount{ font-family:var(--mono); color:var(--amber); font-size:38px; text-align:center; margin:18px 0 6px; font-weight:500; }
+
+/* ---------- onboarding ---------- */
+#onboarding{
+  position:absolute; top:0; right:0; bottom:0; left:0; overflow-y:auto;
+  background:var(--bg); transition:opacity .6s ease; text-align:center; white-space:nowrap;
+}
+#onboarding::before{
+  content:''; display:inline-block; height:100%; vertical-align:middle; width:0;
+}
+#onboarding.fade-out{ opacity:0; pointer-events:none; }
+#ob-content{
+  display:inline-block; vertical-align:middle; white-space:normal; text-align:center;
+  width:100%; max-width:720px; padding:44px 28px;
+}
+.breathe-dot{ width:6px; height:6px; border-radius:50%; background:var(--amber); margin:0 auto 40px; box-shadow:0 0 0 0 rgba(205,67,44,.4); animation:breathe 2.6s ease-in-out infinite; }
+@keyframes breathe{ 0%,100%{ box-shadow:0 0 0 0 rgba(205,67,44,.35);} 50%{ box-shadow:0 0 0 22px rgba(205,67,44,0);} }
+.case-illust{ width:210px; height:78px; border:1.4px solid var(--faint); border-radius:39px; margin:0 auto 34px; position:relative; }
+.case-illust::before{ content:''; position:absolute; left:16px; right:16px; top:50%; height:1px; background:var(--faint); opacity:.5; }
+.case-illust::after{ content:''; position:absolute; right:22px; top:50%; width:6px; height:6px; margin-top:-3px; border-radius:50%; background:var(--amber); box-shadow:0 0 0 8px rgba(205,67,44,.14); }
+.invoice{ max-width:380px; margin:20px auto 0; }
+.invoice-row{ display:flex; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--line); font-size:13px; }
+.invoice-row span:first-child{ color:var(--muted); }
+.invoice-row span:last-child{ font-family:var(--mono); color:var(--text); font-size:15px; }
+/* ---------- 결정도 — 계측 레일 ---------- */
+.dcx{ max-width:600px; margin:32px auto 0; text-align:left; }
+
+.dcx-big{ display:flex; align-items:flex-end; gap:16px; margin:26px 0 4px; }
+.dcx-val{ font-family:var(--eng); font-weight:700; font-size:clamp(64px,15vw,116px);
+  line-height:.86; letter-spacing:-.03em; color:var(--text); font-feature-settings:'tnum' 1; }
+.dcx-band{ position:relative; font-size:15px; font-weight:600; color:var(--amber);
+  letter-spacing:.02em; padding:0 0 9px 20px; transition:color .2s ease; }
+.dcx-band::before{ content:''; position:absolute; left:0; top:3px; bottom:12px; width:1px; background:var(--line2); }
+.dcx-band em{ display:block; font-family:var(--eng); font-style:normal; font-size:9px;
+  font-weight:600; letter-spacing:.24em; color:var(--dim); margin-bottom:5px; }
+
+.dcx-rail{ position:relative; height:52px; margin-top:52px; }
+.dcx-seg{ position:absolute; top:0; bottom:0; cursor:pointer;
+  background:var(--line); overflow:hidden;
+  transition:background .28s ease, box-shadow .28s ease; }
+.dcx-seg:hover{ background:var(--line2); }
+.dcx-seg.on{ background:var(--amber); box-shadow:0 0 22px -4px rgba(205,67,44,.65); }
+.dcx-seg b{ position:absolute; left:9px; bottom:8px; font-size:11.5px; font-weight:600;
+  color:var(--muted); letter-spacing:.01em; transition:color .28s ease; }
+.dcx-seg u{ position:absolute; left:9px; top:8px; font-family:var(--eng); font-size:8.5px;
+  font-weight:600; text-decoration:none; letter-spacing:.2em; color:var(--faint);
+  transition:color .28s ease; }
+.dcx-seg.on b{ color:var(--bg); }
+.dcx-seg.on u{ color:rgba(0,0,0,.5); }
+
+/* 앰버 띠 위에 선을 얹으면 묻힌다. 띠를 아예 뚫어 검은 채널을 낸다. */
+.dcx-mark{ position:absolute; top:-8px; bottom:-8px; width:10px; margin-left:-5px;
+  background:var(--bg); pointer-events:none; z-index:3;
+  transition:left 1.05s cubic-bezier(.2,.85,.25,1); }
+.dcx-mark i{ position:absolute; left:4px; top:0; bottom:0; width:2px; background:var(--text); }
+.dcx-mark b{ position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
+  margin-bottom:10px; padding:2px 7px; background:var(--bg);
+  border:1px solid var(--text); font-family:var(--eng); font-weight:700; font-size:12px;
+  letter-spacing:.03em; color:var(--text); white-space:nowrap; }
+.dcx-mark u{ position:absolute; top:100%; left:50%; transform:translateX(-50%); margin-top:10px;
+  font-family:var(--eng); font-size:8.5px; font-weight:700; letter-spacing:.22em;
+  color:var(--dim); text-decoration:none; }
+
+.dcx-scale{ position:relative; height:14px; margin-top:32px; }
+.dcx-scale span{ position:absolute; top:0; transform:translateX(-50%); font-family:var(--eng);
+  font-size:9.5px; letter-spacing:.12em; color:var(--faint); }
+.dcx-scale span:first-child{ transform:none; }
+.dcx-scale span:last-child{ transform:translateX(-100%); }
+
+@media (max-width:560px){
+  .dcx-rail{ height:46px; }
+  .dcx-seg b{ font-size:10px; left:6px; }
+  .dcx-seg u{ left:6px; letter-spacing:.1em; }
+  .dcx-big{ gap:8px; }
+  .dcx-band{ padding-left:12px; }
+  .dcx-rail{ margin-top:46px; }
+  .dcx-mark b{ font-size:11px; padding:2px 5px; }
+}
+
+.profile-form{ max-width:460px; margin:30px auto 0; text-align:center; }
+.field{ margin-bottom:22px; }
+.field-label{ font-size:11px; color:var(--dim); margin-bottom:10px; letter-spacing:.03em; text-align:center; }
+.chips{ font-size:0; text-align:center; }
+.chip{
+  display:inline-block; margin:0 4px 8px;
+  background:transparent; border:1px solid currentColor; color:var(--muted);
+  font-family:var(--sans); font-size:12.5px; padding:8px 15px; border-radius:999px;
+  cursor:pointer; transition:color .18s, background .18s;
+}
+.chip:hover{ color:var(--text); }
+.chip.on{ color:var(--amber); background:rgba(205,67,44,.10); }
+.chip:focus-visible{ outline:1px solid var(--amber); outline-offset:2px; }
+
+/* ---------- 예산 슬라이더 ---------- */
+.bd-wrap{ max-width:420px; margin:36px auto 0; }
+.bd-amount{ font-family:var(--eng); font-weight:700; font-size:46px; line-height:1.05; letter-spacing:-.01em;
+  color:var(--amber); text-align:center; transition:color .2s, font-size .2s; }
+.bd-amount.off{ color:var(--muted); font-size:30px; }
+.bd-unit{ font-family:var(--mono); font-size:10.5px; color:var(--dim); text-align:center; margin-top:8px; letter-spacing:.06em; }
+.bd-range{
+  -webkit-appearance:none; appearance:none; display:block; width:100%; height:28px;
+  margin:26px 0 0; background:transparent; cursor:pointer; touch-action:none;
+}
+.bd-range::-webkit-slider-runnable-track{ height:1px; background:var(--line2); border:none; }
+.bd-range::-moz-range-track{ height:1px; background:var(--line2); border:none; }
+.bd-range::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:13px; height:13px; margin-top:-6px;
+  border-radius:50%; background:var(--amber); border:none; transition:transform .15s;
+}
+.bd-range::-moz-range-thumb{ width:13px; height:13px; border-radius:50%; background:var(--amber); border:none; }
+.bd-range:active::-webkit-slider-thumb{ transform:scale(1.25); }
+.bd-range:focus-visible{ outline:1px solid var(--amber); outline-offset:6px; }
+.bd-range:disabled{ opacity:.22; cursor:default; }
+.bd-scale{ display:flex; justify-content:space-between; font-family:var(--eng); font-size:10px;
+  color:var(--dim); margin-top:6px; letter-spacing:.02em; }
+.bd-nolimit{
+  display:block; margin:28px auto 0; background:transparent; border:none;
+  border-bottom:1px solid var(--line2); color:var(--dim); font-family:var(--sans);
+  font-size:11.5px; padding:5px 2px; cursor:pointer; letter-spacing:.02em;
+  transition:color .18s, border-color .18s;
+}
+.bd-nolimit:hover{ color:var(--muted); }
+.bd-nolimit.on{ color:var(--amber); border-color:var(--amber); }
+.bd-nolimit:focus-visible{ outline:1px solid var(--amber); outline-offset:3px; }
+
+#mirrorFlashFull{ position:fixed; top:0; right:0; bottom:0; left:0; background:linear-gradient(120deg,#161616 0%, #000000 38%, #454545 52%, #000000 66%, #000000 100%); z-index:60; display:flex; align-items:flex-end; justify-content:center; cursor:pointer; }
+#mirrorFlashFull.hidden{ display:none; }
+#mirrorFlashFull span{ font-size:10px; color:rgba(255,255,255,.25); margin-bottom:26px; letter-spacing:.05em; }
+
+/* ---------- filter setup (onboarding + SHIELD) ---------- */
+.flt-wrap{ max-width:560px; margin:26px auto 0; text-align:left; }
+.flt-group-label{ font-size:10.5px; color:var(--dim); letter-spacing:.04em; margin:22px 0 8px; }
+.flt-list{ border-top:1px solid var(--line); }
+.flt-row{
+  display:flex; align-items:center; gap:14px; padding:13px 2px;
+  border-bottom:1px solid var(--line); cursor:pointer; transition:background .15s;
+}
+.flt-row:hover{ background:rgba(205,67,44,.05); }
+.flt-row:focus-visible{ outline:1px solid var(--amber); outline-offset:-1px; }
+.flt-main{ flex:1; min-width:0; }
+.flt-name{ font-size:13.5px; color:var(--text); }
+.flt-desc{ font-size:11px; color:var(--dim); margin-top:3px; line-height:1.5; }
+.flt-meta{ font-family:var(--mono); font-size:11px; color:var(--muted); text-align:right; white-space:nowrap; line-height:1.6; }
+.flt-meta b{ color:var(--text); font-weight:500; }
+.sw{ width:34px; height:18px; border-radius:999px; border:1px solid var(--line2); position:relative; flex:none; transition:border-color .18s, background .18s; }
+.sw::after{ content:''; position:absolute; top:2px; left:2px; width:12px; height:12px; border-radius:50%; background:var(--dim); transition:transform .18s, background .18s; }
+.flt-row.on .sw{ border-color:var(--amber); background:rgba(205,67,44,.14); }
+.flt-row.on .sw::after{ transform:translateX(16px); background:var(--amber); }
+.flt-row.on .flt-name{ color:var(--amber); }
+.flt-row.locked{ opacity:.45; cursor:default; }
+.flt-row.locked:hover{ background:transparent; }
+
+/* ---------- 필터 스테이지 — 명세표 ---------- */
+.vfx{ max-width:600px; margin:36px auto 0; text-align:left; }
+
+.vfx-head{ display:flex; align-items:center; gap:12px; }
+.vfx-kicker{ font-family:var(--eng); font-size:10px; font-weight:600; letter-spacing:.28em;
+  color:var(--dim); white-space:nowrap; }
+.vfx-rule{ flex:1; height:1px; background:var(--line2); }
+
+/* 시야 포인트 스트립 — 차단하면 그만큼 물리적으로 꺼진다 */
+.vfx-strip{ display:flex; gap:1.5px; margin:18px 0 8px; height:28px; align-items:flex-end; }
+.vfx-strip i{ flex:1; height:100%; background:var(--amber); opacity:.8;
+  transform-origin:bottom; transition:transform .34s cubic-bezier(.2,.8,.2,1), background .3s ease, opacity .3s ease; }
+.vfx-strip i.out{ background:var(--line2); opacity:1; transform:scaleY(.28); }
+.vfx-strip i.base{ opacity:.2; }            /* 필터로 걷어낼 수 없는 고정 시야 */
+.vfx-strip i.edge{ margin-right:8px; }
+.vfx-strip i.hl{ background:var(--text); opacity:1; }
+.vfx-striplabel{ display:flex; justify-content:space-between; font-family:var(--eng);
+  font-size:9.5px; letter-spacing:.2em; color:var(--dim); }
+.vfx-striplabel b{ font-weight:700; color:var(--text); }
+
+.vfx-list{ margin-top:26px; border-top:1px solid var(--line2); }
+.vfx-list + .vfx-sublabel{ margin-top:26px; }
+.vfx-sublabel{ font-family:var(--eng); font-size:9.5px; letter-spacing:.24em; color:var(--faint); margin-bottom:9px; }
+
+.vfx-row{ display:flex; align-items:flex-start; gap:16px; padding:17px 6px 16px;
+  border-bottom:1px solid var(--line); cursor:pointer; position:relative; }
+.vfx-row::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:0;
+  background:rgba(205,67,44,.07); transition:width .3s cubic-bezier(.2,.8,.2,1); }
+.vfx-row:hover::before{ width:100%; }
+.vfx-row:focus-visible{ outline:1px solid var(--amber); outline-offset:-1px; }
+
+.vfx-idx{ font-family:var(--eng); font-size:10px; font-weight:700; letter-spacing:.1em;
+  color:var(--faint); width:20px; flex:none; padding-top:6px; position:relative; z-index:1;
+  transition:color .25s ease; }
+.vfx-row.on .vfx-idx{ color:var(--amber); }
+
+.vfx-body{ flex:1; min-width:0; position:relative; z-index:1; }
+.vfx-name{ position:relative; display:inline-block; font-size:19px; font-weight:600;
+  letter-spacing:-.015em; line-height:1.25; color:var(--text); transition:color .28s ease; }
+.vfx-name i{ position:absolute; left:-3px; right:-3px; top:53%; height:1.5px; background:var(--amber);
+  transform:scaleX(0); transform-origin:left;
+  transition:transform .38s cubic-bezier(.16,.9,.3,1); }
+.vfx-row.cut .vfx-name{ color:var(--muted); }
+.vfx-row.cut .vfx-name i{ transform:scaleX(1); }
+.vfx-sub{ font-family:var(--mono); font-size:10.5px; color:var(--dim); margin-top:7px; line-height:1.55; }
+.vfx-sub em{ font-family:var(--eng); font-style:normal; font-weight:600; color:var(--faint);
+  letter-spacing:.18em; margin-right:9px; }
+
+.vfx-num{ flex:none; text-align:right; padding-top:3px; position:relative; z-index:1; }
+.vfx-num b{ font-family:var(--eng); font-weight:700; font-size:17px; color:var(--text);
+  transition:color .28s ease; }
+.vfx-row.cut .vfx-num b{ color:var(--dim); text-decoration:line-through; text-decoration-color:var(--amber); }
+.vfx-num span{ font-family:var(--eng); font-size:9.5px; color:var(--dim); letter-spacing:.16em; margin-left:4px; }
+.vfx-pt{ font-family:var(--eng); font-size:9.5px; color:var(--faint); letter-spacing:.16em; margin-top:6px; }
+
+/* 토글 — 알약이 아니라 도장 */
+.vfx-mark{ flex:none; width:15px; height:15px; margin-top:7px; border:1px solid var(--line2);
+  position:relative; z-index:1; transition:background .22s ease, border-color .22s ease; }
+.vfx-mark::after{ content:''; position:absolute; left:3px; right:3px; top:50%; height:1px;
+  background:var(--bg); transform:scaleX(0); transition:transform .22s .07s cubic-bezier(.2,.8,.2,1); }
+.vfx-row.on .vfx-mark{ background:var(--amber); border-color:var(--amber); }
+.vfx-row.on .vfx-mark::after{ transform:scaleX(1); }
+.vfx-row.locked{ opacity:.38; cursor:default; }
+.vfx-row.locked::before{ display:none; }
+
+.vfx-foot{ font-family:var(--mono); font-size:10px; color:var(--faint); line-height:1.7;
+  margin-top:10px; padding-left:2px; }
+.vfx-readout{ position:sticky; bottom:0; display:flex; margin-top:24px; padding:17px 0 8px;
+  border-top:1px solid var(--line2); background:var(--bg); }
+.vfx-cell{ flex:1; border-right:1px solid var(--line); padding:0 12px; }
+.vfx-cell:first-child{ padding-left:0; }
+.vfx-cell:last-child{ border-right:none; padding-right:0; }
+.vfx-rv{ font-family:var(--eng); font-weight:700; font-size:26px; letter-spacing:-.01em;
+  color:var(--text); line-height:1.05; }
+.vfx-rv.good{ color:var(--teal); }
+.vfx-rv.warn{ color:var(--rust); }
+.vfx-rk{ font-family:var(--eng); font-size:9px; font-weight:600; letter-spacing:.2em;
+  color:var(--dim); margin-top:8px; }
+.vfx-rk em{ display:block; font-family:var(--sans); font-style:normal; font-size:10px;
+  letter-spacing:0; color:var(--faint); margin-top:3px; }
+
+@media (max-width:560px){
+  .vfx-name{ font-size:16px; }
+  .vfx-rv{ font-size:20px; }
+  .vfx-num b{ font-size:15px; }
+  .vfx-row{ gap:11px; padding:14px 4px 13px; }
+  .vfx-cell{ padding:0 7px; }
+  .vfx-strip{ gap:1px; height:24px; }
+  .vfx-strip i.edge{ margin-right:5px; }
+  .vfx-striplabel{ font-size:8.5px; letter-spacing:.12em; }
+  .vfx-sub{ font-size:10px; }
+}
+
+.readout{
+  position:sticky; bottom:0; margin-top:18px; padding:14px 0 4px;
+  background:linear-gradient(to top, #000 72%, rgba(0,0,0,0));
+  display:flex; gap:0; border-top:1px solid var(--line2);
+}
+.readout-cell{ flex:1; text-align:center; padding:8px 6px; border-right:1px solid var(--line); }
+.readout-cell:last-child{ border-right:none; }
+.readout-cell .rk{ font-size:10px; color:var(--dim); margin-bottom:5px; }
+.readout-cell .rv{ font-family:var(--mono); font-size:15px; color:var(--text); }
+.readout-cell .rv.good{ color:var(--teal); }
+.readout-cell .rv.warn{ color:var(--rust); }
+
+/* ---------- main experience ---------- */
+#experience{ position:absolute; top:0; right:0; bottom:0; left:0; background:#000000; }
+#experience[hidden]{ display:none; }
+#world{ position:absolute; top:0; right:0; bottom:0; left:0; overflow:hidden; transition:filter .5s ease; background:linear-gradient(#2e2e2e 0%, #141414 55%, #050505 100%); }
+#world.dimmed{ filter:brightness(.35) blur(1px); }
+.city{ position:absolute; left:0; right:0; bottom:0; height:38%; display:flex; align-items:flex-end; opacity:.9; }
+.city i{ display:block; background:#000; flex:none; }
+.hud-arc-top{ position:absolute; top:0; left:8%; right:8%; height:3px; background:linear-gradient(90deg, transparent, var(--amber) 35%, var(--amber) 65%, transparent); opacity:.85; }
+.hud-gaze{ position:absolute; top:30%; bottom:30%; width:10px; opacity:0; transition:opacity .8s ease; }
+.hud-gaze.right{ right:0; background:linear-gradient(to left, rgba(205,67,44,.35), transparent); }
+.hud-gaze.left{ left:0; background:linear-gradient(to right, rgba(205,67,44,.35), transparent); }
+.hud-gaze.on{ opacity:1; }
+.hud-gaze-label{ position:absolute; top:26%; font-size:10px; color:var(--muted); opacity:0; transition:opacity .5s; letter-spacing:.03em; }
+.hud-gaze-label.right{ right:22px; text-align:right; }
+.hud-gaze-label.left{ left:22px; }
+.hud-gaze-label.on{ opacity:1; }
+
+/* live indicators */
+.hud-readout{ position:absolute; z-index:12; pointer-events:none; }
+.hud-readout .rk{ font-size:9.5px; color:var(--dim); letter-spacing:.04em; }
+.hud-readout .rv{ font-family:var(--mono); font-size:17px; color:var(--text); margin-top:2px; }
+.hud-readout .rv.small{ font-size:13px; }
+.hud-readout .rv.saved{ color:var(--teal); }
+.hud-readout .rv.warn{ color:var(--rust); }
+#hudTax{ top:22px; left:22px; }
+#hudSaved{ top:78px; left:22px; }
+#hudVision{ top:22px; right:22px; text-align:right; }
+#hudDecid{ top:78px; right:22px; text-align:right; }
+
+.hud-budget{ position:absolute; left:6%; right:6%; bottom:26px; z-index:12; pointer-events:none; }
+.hud-budget-head{ display:flex; justify-content:space-between; font-size:9.5px; color:var(--dim); margin-bottom:6px; letter-spacing:.04em; }
+.hud-budget-head b{ font-family:var(--mono); font-size:11px; color:var(--muted); font-weight:400; }
+.hud-bar{ height:3px; background:var(--line2); position:relative; overflow:hidden; }
+.hud-bar-fill{ position:absolute; left:0; top:0; bottom:0; width:0%; background:var(--rust); opacity:.85; transition:width .5s linear; }
+.hud-bar-fill.over{ background:var(--amber); animation:pulseBar 1.2s ease-in-out infinite; }
+@keyframes pulseBar{ 0%,100%{opacity:.55;} 50%{opacity:1;} }
+
+.hud-feed{ position:absolute; left:22px; top:146px; z-index:12; pointer-events:none; width:300px; max-width:56%; }
+.feed-item{ font-size:10.5px; font-family:var(--mono); color:var(--dim); padding:2px 0; opacity:0; animation:feedIn .35s ease forwards; }
+.feed-item .b{ color:var(--teal); }
+.feed-item .p{ color:var(--amber); }
+@keyframes feedIn{ from{opacity:0; transform:translateX(-6px);} to{opacity:1; transform:none;} }
+
+/* passers-by */
+.ent{ position:absolute; bottom:0; z-index:8; will-change:transform; pointer-events:none; }
+.ent-body{ width:14px; background:#4a4a46; border-radius:7px 7px 0 0; opacity:.85; transition:filter .55s ease, opacity .55s ease, background .55s ease; }
+.ent.blocked .ent-body{ background:#000; border:1px dashed rgba(205,67,44,.55); border-bottom:none; opacity:1; }
+.ent-tag{ font-family:var(--mono); font-size:9px; white-space:nowrap; margin-top:5px; transform:translateX(-50%); margin-left:7px; color:var(--amber); }
+.ent.blocked .ent-tag{ color:var(--teal); }
+
+/* 예산 초과 — 차단이 아니라 블러. 통행에 필요한 윤곽은 남는다. */
+#world.over-budget .ent-body{
+  background:#4a4a46; border:none; border-radius:7px 7px 0 0;
+  opacity:.5; filter:blur(5px);
+}
+#world.over-budget .ent-tag{ color:var(--teal); opacity:.55; filter:blur(.4px); }
+#world.over-budget .city{ filter:blur(2.5px); transition:filter .6s ease; }
+
+.world-hint{
+  position:absolute; left:50%; bottom:104px; transform:translateX(-50%);
+  font-size:11.5px; color:var(--dim); letter-spacing:.02em; text-align:center; white-space:nowrap;
+  opacity:1; transition:opacity 3s ease; z-index:13;
+}
+.world-hint.faded{ opacity:0; }
+
+.close-progress{ position:fixed; top:0; right:0; bottom:0; left:0; background:radial-gradient(circle at center, transparent 0%, transparent var(--p,150%), rgba(0,0,0,.94) var(--p,150%)); pointer-events:none; z-index:15; transition:none; }
+
+#system{ position:absolute; top:0; right:0; bottom:0; left:0; overflow-y:auto; text-align:center; white-space:nowrap; background:#000000; opacity:0; pointer-events:none; transition:opacity .35s ease; z-index:20; }
+#system::before{ content:''; display:inline-block; height:100%; vertical-align:middle; width:0; }
+#system.active{ opacity:1; pointer-events:auto; }
+#sysMenu{ display:inline-block; vertical-align:middle; white-space:normal; text-align:left; width:100%; max-width:440px; padding:30px; }
+#sysMenu ul{ list-style:none; margin:0; padding:0; border-top:1px solid var(--line); }
+#sysMenu li{ padding:18px 4px; border-bottom:1px solid var(--line); cursor:pointer; transition:background .15s; display:flex; align-items:baseline; gap:12px; }
+#sysMenu li .k{ font-family:var(--mono); font-size:15px; color:var(--text); font-weight:500; flex:none; }
+#sysMenu li .s{ font-size:11px; color:var(--dim); flex:1; }
+#sysMenu li .v{ font-family:var(--mono); font-size:11px; color:var(--muted); flex:none; }
+#sysMenu li.focused{ background:rgba(205,67,44,.09); }
+#sysMenu li.focused .k{ color:var(--amber); }
+#sysMenu li.void-item{ height:20px; display:block; }
+.sys-head{ font-size:10.5px; color:var(--dim); letter-spacing:.04em; margin-bottom:14px; }
+.sys-head b{ font-family:var(--mono); color:var(--muted); font-weight:400; }
+
+#sysPanel{ position:absolute; top:0; right:0; bottom:0; left:0; background:#000000; overflow-y:auto; text-align:center; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .3s ease; }
+#sysPanel::before{ content:''; display:inline-block; height:100%; vertical-align:middle; width:0; }
+#sysPanel.active{ opacity:1; pointer-events:auto; }
+.panel-inner{ display:inline-block; vertical-align:middle; white-space:normal; text-align:left; width:100%; max-width:560px; padding:64px 40px 40px; }
+.panel-title{ font-size:var(--title-size); font-weight:600; line-height:1.25; color:var(--text); margin-bottom:26px; letter-spacing:-.01em; }
+.panel-back{ position:absolute; top:26px; left:30px; font-size:11.5px; color:var(--dim); cursor:pointer; z-index:2; }
+.panel-back:hover{ color:var(--amber); }
+.speak-btn{ position:absolute; top:24px; right:30px; z-index:2; background:transparent; border:1px solid currentColor; color:var(--muted); font-family:var(--sans); font-size:11px; padding:6px 14px; border-radius:999px; cursor:pointer; transition:color .2s; }
+.speak-btn:hover, .speak-btn.on{ color:var(--amber); }
+.stat-row{ display:flex; justify-content:space-between; padding:13px 0; border-bottom:1px solid var(--line); font-size:13px; gap:16px; }
+.stat-row span:first-child{ color:var(--muted); }
+.stat-row span:last-child{ font-family:var(--mono); color:var(--text); font-size:14.5px; text-align:right; }
+.stat-row.total span:last-child{ color:var(--amber); font-size:16px; }
+.crowd{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
+.crowd i{ width:6px; height:6px; border-radius:50%; background:var(--faint); display:block; }
+.crowd i.focus{ background:var(--amber); box-shadow:0 0 0 3px rgba(205,67,44,.28); }
+.italic-line{ font-size:12px; color:var(--muted); font-style:italic; margin-top:16px; line-height:1.7; }
+.contract-cols{ display:flex; gap:0; border-top:1px solid var(--line); margin-top:10px; }
+.contract-cols > div{ flex:1; padding:16px 14px 14px; border-right:1px solid var(--line); }
+.contract-cols > div:last-child{ border-right:none; }
+.contract-cols h5{ font-family:var(--mono); font-size:11.5px; margin:0 0 10px; letter-spacing:.02em; }
+.contract-cols p{ font-size:12px; color:var(--text); line-height:1.6; margin:0; }
+.hold-slider{ width:100%; margin:24px 0 10px; accent-color:var(--amber); }
+.hold-compare{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); font-family:var(--mono); }
+.hold-warn{ font-size:11.5px; color:var(--rust); margin-top:18px; line-height:1.6; transition:opacity .3s; }
+.ring-family{ display:flex; align-items:center; gap:34px; }
+.ring-svg text{ font-family:var(--mono); }
+.placeholder-note{ font-size:12.5px; color:var(--dim); line-height:1.7; }
+.tabs{ display:flex; border-bottom:1px solid var(--line); margin-bottom:18px; }
+.tab{ padding:9px 16px; font-size:12px; color:var(--dim); cursor:pointer; border-bottom:1px solid transparent; margin-bottom:-1px; transition:color .18s, border-color .18s; }
+.tab:hover{ color:var(--text); }
+.tab.on{ color:var(--amber); border-bottom-color:var(--amber); }
+.pbar{ height:3px; background:var(--line2); position:relative; margin:8px 0 4px; }
+.pbar > i{ position:absolute; left:0; top:0; bottom:0; background:var(--rust); display:block; }
+.pbar > i.teal{ background:var(--teal); }
+.pbar-legend{ display:flex; justify-content:space-between; font-size:10.5px; color:var(--dim); font-family:var(--mono); }
+.big-metric{ font-family:var(--mono); font-size:34px; color:var(--amber); line-height:1; margin:4px 0 6px; }
+.big-metric small{ font-size:13px; color:var(--muted); margin-left:6px; }
+.miss-list{ font-size:12px; color:var(--muted); line-height:1.9; margin-top:14px; }
+.miss-list i{ color:var(--rust); font-style:normal; margin-right:8px; }
+
+/* ---------- camera / eye tracking ---------- */
+#camFeed{ position:fixed; width:150px; height:112px; left:50%; margin-left:-75px; bottom:100px; object-fit:cover;
+  border:1px solid var(--line2); border-radius:4px; z-index:30; opacity:.5; transform:scaleX(-1);
+  display:none; pointer-events:none; }
+#camFeed.show{ display:block; }
+.cam-chip{
+  position:fixed; left:50%; transform:translateX(-50%); bottom:56px; z-index:31; display:flex; align-items:center; gap:9px;
+  border:1px solid var(--line2); border-radius:999px; padding:7px 14px 7px 11px; cursor:pointer;
+  background:rgba(0,0,0,.55); transition:border-color .2s;
+}
+.cam-chip:hover{ border-color:var(--amber-dim); }
+.cam-chip .dot{ width:7px; height:7px; border-radius:50%; background:var(--dim); flex:none; transition:background .2s; }
+.cam-chip.open .dot{ background:var(--amber); box-shadow:0 0 0 4px rgba(205,67,44,.16); }
+.cam-chip.shut .dot{ background:var(--teal); box-shadow:none; }
+.cam-chip .lbl{ font-size:10.5px; color:var(--muted); white-space:nowrap; letter-spacing:.02em; }
+.cam-chip .eb{ width:40px; height:2px; background:var(--line2); position:relative; flex:none; }
+.cam-chip .eb > i{ position:absolute; left:0; top:0; bottom:0; background:var(--amber); width:0%; }
+.cam-chip.off{ opacity:.55; }
+.cam-chip[hidden], .aud-chip[hidden]{ display:none; }
+
+.aud-chip{
+  position:fixed; left:50%; transform:translateX(-50%); bottom:20px; z-index:31;
+  display:flex; align-items:center; gap:8px; border:1px solid var(--line2); border-radius:999px;
+  padding:6px 13px; cursor:pointer; background:rgba(0,0,0,.55); transition:border-color .2s;
+}
+.aud-chip:hover{ border-color:var(--amber-dim); }
+.aud-chip .lbl{ font-size:10.5px; color:var(--muted); white-space:nowrap; letter-spacing:.02em; }
+.aud-chip.on .lbl{ color:var(--amber); }
+.aud-wave{ display:flex; align-items:flex-end; gap:2px; height:10px; }
+.aud-wave i{ width:2px; height:3px; background:var(--dim); display:block; }
+.aud-chip.on .aud-wave i{ background:var(--amber); }
+.aud-chip.on.talking .aud-wave i{ animation:wv .7s ease-in-out infinite; }
+.aud-chip.on.talking .aud-wave i:nth-child(2){ animation-delay:.12s; }
+.aud-chip.on.talking .aud-wave i:nth-child(3){ animation-delay:.24s; }
+.aud-chip.on.talking .aud-wave i:nth-child(4){ animation-delay:.36s; }
+@keyframes wv{ 0%,100%{ height:3px; } 50%{ height:10px; } }
+
+.calib-instr{
+  position:fixed; top:9vh; left:0; right:0; z-index:6; text-align:center; padding:0 22px;
+  font-size:var(--title-size); font-weight:600; line-height:1.3; letter-spacing:-.01em; color:var(--text);
+}
+.calib-num{
+  position:fixed; top:0; right:0; bottom:0; left:0; z-index:5;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:min(52vw, 62vh); line-height:1;
+  color:var(--text); pointer-events:none; user-select:none;
+}
+.calib-num span{ display:block; animation:numIn .45s cubic-bezier(.2,.8,.2,1); }
+@keyframes numIn{ from{ opacity:0; transform:scale(1.18); } to{ opacity:1; transform:scale(1); } }
+.calib-hint{
+  position:fixed; bottom:11vh; left:0; right:0; z-index:6; text-align:center;
+  font-size:12.5px; color:var(--dim); letter-spacing:.02em; min-height:18px;
+}
+.calib-track{ position:fixed; bottom:7vh; left:22%; right:22%; height:1px; background:var(--line2); z-index:6; }
+.calib-track > i{ display:block; height:100%; width:0%; background:var(--amber); }
+
+.gather-word{
+  position:fixed; top:0; right:0; bottom:0; left:0; z-index:5;
+  display:flex; align-items:center; justify-content:center; text-align:center;
+  font-weight:600; font-size:min(9vw, 62px); letter-spacing:.06em; color:var(--text);
+}
+.gather-word b{ font-weight:600; opacity:.18; animation:gth 1.5s ease-in-out infinite; }
+@keyframes gth{ 0%,100%{ opacity:.18; } 50%{ opacity:1; } }
+/* ---------- VERIFIED — 체크가 아니라 스캔 락 ---------- */
+.verify-mark{ position:fixed; top:0; right:0; bottom:0; left:0; z-index:5;
+  display:flex; align-items:center; justify-content:center; flex-direction:column; gap:22px; }
+.vf-stage{ position:relative; width:min(34vw,190px); height:min(34vw,190px); }
+.vf-stage svg{ width:100%; height:100%; display:block; overflow:visible; }
+
+.vf-br{ fill:none; stroke:var(--amber); stroke-width:2.5; stroke-linecap:square;
+  opacity:0; transform-box:view-box; transform-origin:100px 100px; animation:vfSnap .42s cubic-bezier(.16,1.1,.3,1) forwards; }
+.vf-br.b2{ animation-delay:.05s; } .vf-br.b3{ animation-delay:.1s; } .vf-br.b4{ animation-delay:.15s; }
+@keyframes vfSnap{ from{ opacity:0; transform:scale(1.55); } 70%{ opacity:1; } to{ opacity:1; transform:scale(1); } }
+
+.vf-ring{ fill:none; stroke:var(--amber); stroke-width:1; opacity:.5;
+  stroke-dasharray:6 10; transform-box:view-box; transform-origin:100px 100px; animation:vfSpin 5.5s linear infinite; }
+@keyframes vfSpin{ to{ transform:rotate(360deg); } }
+
+.vf-iris{ fill:none; stroke:var(--amber); stroke-width:1.5; transform-box:view-box; transform-origin:100px 100px;
+  stroke-dasharray:264; stroke-dashoffset:264; animation:vfDraw .55s .12s cubic-bezier(.3,.9,.3,1) forwards; }
+@keyframes vfDraw{ to{ stroke-dashoffset:0; } }
+
+.vf-cross{ stroke:var(--amber); stroke-width:1; opacity:0;
+  animation:vfCross .3s .5s ease forwards; }
+@keyframes vfCross{ from{ opacity:0; transform:scale(.4); } to{ opacity:.9; transform:scale(1); } }
+.vf-cross{ transform-box:view-box; transform-origin:100px 100px; }
+
+.vf-scan{ position:absolute; left:-18%; right:-18%; top:0; height:1px;
+  background:linear-gradient(90deg, transparent, var(--amber), transparent);
+  box-shadow:0 0 14px 2px rgba(205,67,44,.55); opacity:0;
+  animation:vfScan .85s .1s cubic-bezier(.5,0,.2,1) forwards; }
+@keyframes vfScan{
+  0%{ transform:translateY(0); opacity:0; }
+  12%{ opacity:1; }
+  88%{ opacity:1; }
+  100%{ transform:translateY(min(34vw,190px)); opacity:0; }
+}
+
+.vf-flash{ position:fixed; top:0; right:0; bottom:0; left:0; z-index:6; pointer-events:none;
+  background:var(--amber); opacity:0; mix-blend-mode:screen; animation:vfFlash .5s .62s ease-out forwards; }
+@keyframes vfFlash{ 0%{ opacity:0; } 8%{ opacity:.17; } 22%{ opacity:.02; } 30%{ opacity:.09; } 100%{ opacity:0; } }
+
+.verify-word{ position:relative; font-weight:600; font-size:min(8vw,44px); letter-spacing:.16em;
+  color:var(--text); animation:vfShift 1.5s .55s steps(1,end); }
+@keyframes vfShift{
+  0%,100%{ transform:none; text-shadow:none; }
+  41%{ transform:translateX(-2px); text-shadow:2px 0 var(--amber), -2px 0 var(--teal); }
+  43%{ transform:translateX(3px); text-shadow:-3px 0 var(--amber); }
+  45%{ transform:none; text-shadow:none; }
+  72%{ transform:translateX(2px); text-shadow:-2px 0 var(--amber); }
+  74%{ transform:none; text-shadow:none; }
+}
+.vf-meta{ font-family:var(--mono); font-size:10.5px; letter-spacing:.18em; color:var(--dim);
+  opacity:0; animation:riseIn .5s 1.35s ease forwards; }
+.vf-meta b{ color:var(--amber); font-weight:400; }
+.cam-err{ font-size:11.5px; color:var(--rust); margin-top:16px; line-height:1.6; }
+
+.corner-brand{ position:fixed; left:22px; bottom:8px; font-family:var(--mono); font-size:10px; color:var(--faint); letter-spacing:.05em; opacity:1; transition:opacity 2.5s ease; z-index:5;}
+.corner-brand.faded{ opacity:0; }
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+}
+@media (max-width:640px){
+  .voice-line{ font-size:15.5px; padding:0 8px; }
+  .contract-cols{ flex-direction:column; }
+  .contract-cols > div{ border-right:none; border-bottom:1px solid var(--line); padding-bottom:14px; }
+  .panel-inner{ padding:64px 24px 40px; }
+  #sysMenu{ padding:24px 20px; }
+  .hud-readout .rv{ font-size:14px; }
+  #hudTax{ top:16px; left:16px; } #hudSaved{ top:62px; left:16px; }
+  #hudVision{ top:16px; right:16px; } #hudDecid{ top:62px; right:16px; }
+  .hud-feed{ left:16px; top:118px; width:auto; right:16px; max-width:none; }
+  .flt-meta{ font-size:10px; }
+  .readout-cell .rv{ font-size:13px; }
+}
+/* ---------- 온보딩 뒤로가기 ---------- */
+.ob-back{
+  position:fixed; top:22px; left:24px; z-index:30;
+  background:transparent; border:none; padding:6px 4px;
+  font-family:var(--sans); font-size:11.5px; letter-spacing:.02em;
+  color:var(--dim); cursor:pointer; transition:color .2s;
+}
+.ob-back:hover{ color:var(--amber); }
+.ob-back:focus-visible{ outline:1px solid var(--amber); outline-offset:2px; }
+.ob-back[hidden]{ display:none; }
+.ob-indicator{
+  position:absolute; top:22px; left:50%; transform:translateX(-50%); z-index:5;
+  display:flex; align-items:center; gap:10px; color:var(--faint); pointer-events:none;
+}
+.ob-step-count{ font-family:var(--eng); font-size:9px; letter-spacing:.12em; white-space:nowrap; }
+.ob-dots{ display:flex; align-items:center; gap:5px; }
+.ob-dot{ width:4px; height:4px; border-radius:50%; background:var(--line2); transition:all .25s ease; }
+.ob-dot.on{ width:18px; border-radius:3px; background:var(--amber); }
+.ob-dot.done{ background:var(--dim); }
+@media (max-width:640px){ .ob-back{ top:14px; left:14px; } .ob-indicator{ top:16px; } }
+
+/* ---------- 두 번째 하이라이트 (호버) ---------- */
+.vfx-row.hov::before{ width:100%; background:rgba(140,143,137,.10); }
+.vfx-row.hov .vfx-idx{ color:var(--hl2); }
+.vfx-row.hov .vfx-name{ color:#fff; }
+.dec-row{ cursor:default; }
+.dec-row .vfx-mark{ display:none; }          /* 결정도 목록은 선택하는 것이 아니다 */
+.dcx-seg.hov{ background:var(--hl2); box-shadow:none; }
+.dcx-seg.hov b{ color:var(--bg); }
+.dcx-seg.hov u{ color:rgba(0,0,0,.45); }
+
+/* ---------- 이미지 스캔 ---------- */
+.imx{ max-width:1980px; margin:4px auto 0; text-align:left; position:relative; }
+.imx-focus{ display:grid; grid-template-columns:minmax(0, 1fr) minmax(300px, 330px); gap:18px; align-items:start; position:relative; }
+.imx-detail{ min-width:0; padding:2px 2px 0 0; position:sticky; top:8px; align-self:start; max-height:calc(100vh - 16px); overflow:hidden; }
+.imx-main{ min-width:0; }
+.imx-detail .imx-era{ margin-top:0; }
+.imx-stage{ position:relative; width:100%; height:clamp(360px, 53vh, 510px); margin:0; }
+.imx-stage canvas{ width:100%; height:100%; display:block; cursor:grab; touch-action:none; }
+.imx-stage canvas:active{ cursor:grabbing; }
+.imx-c{ position:absolute; width:13px; height:13px; border:1px solid var(--line2); pointer-events:none; }
+.imx-c.tl{ left:0; top:0; border-right:none; border-bottom:none; }
+.imx-c.tr{ right:0; top:0; border-left:none; border-bottom:none; }
+.imx-c.bl{ left:0; bottom:0; border-right:none; border-top:none; }
+.imx-c.br{ right:0; bottom:0; border-left:none; border-top:none; }
+.imx-badge{ position:absolute; left:24px; top:5px; font-size:9.5px; font-weight:600;
+  letter-spacing:.24em; color:var(--dim); pointer-events:none; }
+.imx-badge b{ color:var(--amber); font-weight:600; }
+.imx-hint{ font-size:7.5px; font-weight:600; letter-spacing:.20em; color:var(--faint);
+  text-align:center; margin-top:2px; }
+
+/* ---------- 상단 고정 두상 ---------- */
+/* 스크롤해도 두상이 남아 있어야, 아래 타임라인을 누른 결과를 바로 볼 수 있다. */
+.imx-sticky{ position:relative; z-index:20; background:var(--bg); padding:4px 0 8px; }
+.imx-sticky::before{ content:''; position:absolute; top:0; bottom:0; left:-40px; right:-40px;
+  background:var(--bg); z-index:-1; }
+.imx-sticky::after{ content:''; position:absolute; left:0; right:0; bottom:0; height:16px;
+  background:linear-gradient(var(--bg), rgba(0,0,0,0)); transform:translateY(100%);
+  pointer-events:none; }
+.imx-side{ display:flex; align-items:center; gap:12px; padding:10px 2px 9px; }
+.sd-t{ flex:1; min-width:0; font-size:10.5px; color:var(--muted); line-height:1.6; }
+.sd-t b{ font-weight:600; color:#E8E8E2; margin-right:5px; }
+.imx-side.back .sd-t b{ color:var(--amber); }
+.sd-t span{ display:block; font-family:var(--mono); font-size:10px; color:var(--dim);
+  margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.imx-flip{ flex:none; background:transparent; border:1px solid var(--line2);
+  color:var(--muted); font-family:var(--sans); font-size:10px; padding:6px 11px;
+  cursor:pointer; transition:border-color .2s ease, color .2s ease; }
+.imx-flip:hover{ border-color:var(--amber); color:var(--amber); }
+.imx-flip:focus-visible{ outline:1px solid var(--amber); outline-offset:2px; }
+.imx-foot{ display:flex; align-items:baseline; gap:12px; padding:9px 2px 8px;
+  border-top:1px solid var(--line2); border-bottom:1px solid var(--line); }
+.imx-foot .ft-ym{ font-family:var(--eng); font-size:12px; font-weight:700; color:var(--text);
+  font-feature-settings:'tnum' 1; }
+.imx-foot .ft-age{ font-family:var(--eng); font-size:11px; font-weight:700; color:var(--amber);
+  font-feature-settings:'tnum' 1; }
+.imx-foot .ft-nm{ flex:1; min-width:0; font-size:12px; font-weight:600; color:var(--muted);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.imx-foot .ft-dec{ font-family:var(--eng); font-size:12px; font-weight:700; color:var(--text);
+  font-feature-settings:'tnum' 1; }
+.imx-foot .ft-dec em{ font-style:normal; font-size:8px; letter-spacing:.2em;
+  color:var(--dim); margin-right:5px; }
+.imx-read{ margin-top:34px; border-top:1px solid var(--line2); }
+.rdr{ display:flex; align-items:center; gap:16px; padding:14px 2px 13px; border-bottom:1px solid var(--line); }
+.rdr-k{ width:104px; flex:none; }
+.rdr-k b{ display:block; font-size:13.5px; font-weight:600; color:var(--text); letter-spacing:-.01em; }
+.rdr-k em{ display:block; font-family:var(--eng); font-style:normal; font-size:8.5px;
+  font-weight:600; letter-spacing:.2em; color:var(--faint); margin-top:4px; }
+.rdr-mid{ flex:1; min-width:0; }
+.rdr-d{ font-family:var(--mono); font-size:10px; color:var(--dim); margin-bottom:9px; line-height:1.5; }
+.rdr-b{ height:2px; background:var(--line2); position:relative; }
+.rdr-b i{ position:absolute; left:0; top:0; bottom:0; background:var(--amber);
+  transition:width .55s cubic-bezier(.2,.8,.2,1); }
+.rdr-v{ font-family:var(--eng); font-weight:700; font-size:19px; color:var(--text);
+  width:42px; text-align:right; flex:none; font-feature-settings:'tnum' 1; }
+
+/* ---------- 라이프 타임라인 — 긍정/부정을 종합한 단일 인상선 ---------- */
+.lifegraph{ position:relative; margin-top:5px; padding-bottom:45px;
+  border-top:1px solid var(--line2); padding-top:16px; }
+.lg-svg{ display:block; width:100%; height:auto; overflow:visible; }
+.lg-grid{ stroke:var(--line); stroke-width:.55; opacity:.32; }
+.lg-grid.major{ opacity:.62; stroke:var(--line2); }
+.lg-zero{ stroke:var(--line2); stroke-width:1; }
+.lg-composite{ fill:none; stroke:#E8E8E2; stroke-width:2.2; stroke-linejoin:round; stroke-linecap:round; }
+.lg-composite-dot{ fill:var(--bg); stroke:#E8E8E2; stroke-width:1.5; }
+.lg-composite-dot.on{ fill:#E8E8E2; stroke-width:2; }
+.lg-axis{ stroke:var(--line2); stroke-width:1; }
+.lg-pred{ stroke:var(--line2); stroke-width:1; stroke-dasharray:2 4; }
+.lg-stem{ stroke:var(--line); stroke-width:1; }
+.lg-area.pos{ fill:url(#lgPos); }
+.lg-area.neg{ fill:url(#lgNeg); }
+.lg-line{ fill:none; stroke-width:1.6; stroke-linejoin:round; stroke-linecap:round; }
+.lg-line.pos{ stroke:#E8E8E2; opacity:.72; }
+.lg-line.neg{ stroke:var(--amber); }
+.lg-dot{ fill:var(--bg); stroke-width:1.4; transition:r .2s ease; }
+.lg-dot.pos{ stroke:#E8E8E2; }
+.lg-dot.neg{ stroke:var(--amber); }
+.lg-dot.on{ r:4.6; stroke-width:1.8; }
+.lg-dot.pos.on{ fill:#E8E8E2; }
+.lg-dot.neg.on{ fill:var(--amber); }
+.lg-yl{ position:absolute; left:0; font-family:var(--eng); font-size:8.5px; font-weight:700;
+  letter-spacing:.24em; color:var(--dim); }
+.lg-yl.top{ top:20px; }
+.lg-yl.bot{ bottom:66px; }
+.lg-predlab{ position:absolute; right:0; top:20px; font-family:var(--eng); font-size:8.5px;
+  font-weight:700; letter-spacing:.24em; color:var(--faint); }
+
+.lg-node{ position:absolute; top:22px; bottom:0; width:58px; margin-left:-29px;
+  background:transparent; border:none; padding:0; cursor:pointer;
+  display:flex; flex-direction:column; justify-content:flex-end; align-items:center; }
+.lg-stick{ position:absolute; left:50%; top:0; bottom:52px; width:1px; margin-left:-.5px;
+  background:transparent; transition:background .2s ease; }
+.lg-node:hover .lg-stick{ background:rgba(140,143,137,.24); }
+.lg-node.on .lg-stick{ background:rgba(205,67,44,.42); }
+.lg-lab{ display:block; text-align:center; padding:6px 2px 0; width:100%;
+  border-top:1px solid var(--line); transition:border-color .2s ease; }
+.lg-node:hover .lg-lab{ border-top-color:var(--hl2); }
+.lg-node.on .lg-lab{ border-top-color:var(--amber); }
+.lg-lab u{ display:block; font-family:var(--eng); font-size:9px; font-weight:700;
+  letter-spacing:.04em; color:var(--dim); text-decoration:none; font-feature-settings:'tnum' 1; }
+.lg-lab b{ display:block; font-family:var(--eng); font-size:11px; font-weight:700;
+  color:var(--muted); margin-top:3px; font-feature-settings:'tnum' 1; }
+.lg-lab s{ display:block; font-size:9.5px; font-weight:600; color:var(--faint);
+  margin-top:3px; text-decoration:none; }
+.lg-node.on .lg-lab b{ color:var(--text); }
+.lg-node.on .lg-lab u, .lg-node.on .lg-lab s{ color:var(--amber); }
+.lg-node.pred .lg-lab u, .lg-node.pred .lg-lab b{ font-style:italic; }
+.lg-node:focus-visible{ outline:1px solid var(--amber); outline-offset:2px; }
+
+
+.trait-summary{ border-top:1px solid var(--line2); }
+.trait-summary-row{ display:grid; grid-template-columns:54px minmax(0,1fr) auto 58px minmax(0,1fr) 54px; align-items:center; gap:6px; padding:7px 0; border-bottom:1px solid var(--line); }
+.trait-summary-row b{ font-size:11.5px; font-weight:600; color:var(--text); text-align:center; }
+.trait-summary-row em{ font-family:var(--eng); font-size:8px; font-style:normal; letter-spacing:.12em; color:var(--faint); text-align:center; }
+.trait-summary-row .trait-end{ font-size:10px; color:var(--muted); white-space:nowrap; }
+.trait-summary-row .trait-end.left{ text-align:right; }
+.trait-summary-row .trait-end.right{ text-align:left; }
+.trait-summary-row .trait-track{ position:relative; height:2px; background:var(--line2); }
+.trait-summary-row .trait-mid{ position:absolute; left:50%; top:-3px; width:1px; height:8px; background:var(--line2); }
+.trait-summary-row .trait-fill{ position:absolute; top:0; height:2px; background:var(--amber); }
+.trait-summary-row .trait-dot{ position:absolute; top:-3px; width:8px; height:8px; margin-left:-4px; border-radius:50%; background:var(--amber); }
+.trait-summary-row .trait-score{ font-family:var(--eng); font-size:9px; color:var(--amber); font-feature-settings:'tnum' 1; text-align:right; }
+
+/* ---------- 특성 — 선택 연령대 상세 ---------- */
+.trait-cols{ display:grid; grid-template-columns:1fr; gap:0; }
+.trait-cols .trait-col{ width:100%; }
+.trait-cols .trait-col + .trait-col{ margin-top:18px; }
+.trait-col{ min-width:0; }
+.tc-h{ display:flex; align-items:baseline; gap:7px; padding-bottom:9px;
+  border-bottom:1px solid var(--line2); }
+.tc-h b{ font-size:13px; font-weight:600; }
+.tc-h em{ flex:1; font-family:var(--eng); font-style:normal; font-size:8px; font-weight:700;
+  letter-spacing:.2em; color:var(--faint); }
+.tc-h u{ font-family:var(--eng); font-size:11px; font-weight:700; text-decoration:none;
+  color:var(--dim); font-feature-settings:'tnum' 1; }
+.trait-col.pos .tc-h b{ color:#E8E8E2; }
+.trait-col.neg .tc-h b{ color:var(--amber); }
+.tr2{ display:flex; align-items:center; gap:9px; padding:8px 0 7px;
+  border-bottom:1px solid var(--line); }
+.tr2 b{ font-size:12.5px; font-weight:600; color:var(--text); letter-spacing:-.01em;
+  white-space:nowrap; }
+.tr2 em{ flex:1; min-width:0; font-family:var(--eng); font-style:normal; font-size:8px;
+  font-weight:700; letter-spacing:.14em; color:var(--faint); overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.tr2-p{ display:flex; gap:2px; width:34px; flex:none; }
+.tr2-p s{ display:block; width:100%; height:2px; background:var(--line2); text-decoration:none; }
+.trait-col.pos .tr2-p s.f{ background:#E8E8E2; }
+.trait-col.neg .tr2-p s.f{ background:var(--amber); }
+
+.imx-era{ margin-top:4px; }
+.imx-era-top{ display:flex; align-items:baseline; gap:12px; }
+.imx-era-name{ font-size:25px; font-weight:600; letter-spacing:-.02em; color:var(--text); line-height:1.1; }
+.imx-era-dec{ font-family:var(--eng); font-weight:700; font-size:15px; color:var(--amber);
+  font-feature-settings:'tnum' 1; }
+.imx-era-dec em{ font-style:normal; font-size:8.5px; letter-spacing:.2em; color:var(--dim); margin-right:6px; }
+.imx-era-line{ font-size:12px; color:var(--muted); line-height:1.75; margin-top:12px; max-width:520px; }
+.imx-tr-label{ font-family:var(--eng); font-size:8.5px; font-weight:600; letter-spacing:.26em;
+  color:var(--faint); margin:24px 0 11px; }
+
+
+@media (max-width:560px){
+  .imx-sticky{ padding-top:36px; }
+  .imx-stage{ height:clamp(250px,42vh,340px); }
+  .imx-flip{ font-size:9.5px; padding:5px 8px; }
+  .sd-t{ font-size:9.5px; }
+  .sd-t span{ font-size:9px; }
+  .imx-foot{ gap:8px; }
+  .imx-foot .ft-ym, .imx-foot .ft-dec{ font-size:11px; }
+  .imx-foot .ft-nm{ font-size:11px; }
+  .rdr-k{ width:78px; }
+  .rdr-k b{ font-size:12.5px; }
+  .rdr-d{ display:none; }
+  .rdr-v{ font-size:16px; width:34px; }
+  .imx-era-name{ font-size:22px; }
+  .lifegraph{ padding-bottom:56px; }
+  .lg-node{ width:52px; margin-left:-26px; }
+  .lg-stick{ bottom:56px; }
+  .lg-yl.bot{ bottom:60px; }
+  .lg-lab u{ font-size:7.5px; letter-spacing:0; }
+  .lg-lab b{ font-size:10px; }
+  .lg-lab s{ font-size:9px; }
+  .lg-yl, .lg-predlab{ font-size:7.5px; letter-spacing:.14em; }
+  .imx-focus{ grid-template-columns:1fr; gap:18px; }
+  .imx-stage{ height:clamp(300px,48vh,420px); }
+  .imx-detail{ padding-top:0; }
+  .trait-cols{ grid-template-columns:1fr; gap:0; }
+  .trait-col.neg{ margin-top:18px; }
+}
+
+/* ---------- 프로필 직업 선택 ---------- */
+.job-groups{ display:grid; gap:8px; }
+.job-group{ border:1px solid var(--line2); }
+.job-group-toggle{ width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 14px; background:transparent; border:0; color:var(--text); text-align:left; cursor:pointer; }
+.job-group-toggle .jg-main{ display:flex; align-items:baseline; gap:8px; }
+.job-group-toggle b{ font-size:12px; font-weight:600; }
+.job-group-toggle em{ font-family:var(--eng); font-style:normal; font-size:8px; letter-spacing:.18em; color:var(--faint); }
+.job-group-toggle i{ font-style:normal; color:var(--dim); font-size:13px; transition:transform .2s ease; }
+.job-group.open .job-group-toggle{ border-bottom:1px solid var(--line2); }
+.job-group.open .job-group-toggle i{ transform:rotate(45deg); color:var(--amber); }
+.job-chips{ display:none; flex-wrap:wrap; gap:7px; padding:12px 13px 14px; }
+.job-group.open .job-chips{ display:flex; }
+.job-chips .chip{ margin:0; }
+@media (max-width:760px){
+  .imx{ max-width:100%; }
+  .imx-focus{ grid-template-columns:1fr; gap:12px; }
+  .imx-detail{ position:relative; top:auto; max-height:none; overflow:visible; padding-right:0; }
+  .imx-stage{ height:clamp(300px,50vh,430px); }
+}
+@media (max-width:560px){
+  .imx-stage{ height:clamp(250px,44vh,340px); }
+  .lifegraph{ padding-bottom:50px; }
+  .lg-node{ width:48px; margin-left:-24px; }
+  .lg-stick{ bottom:50px; }
+  .lg-yl.bot{ bottom:54px; }
+}
+
+/* ---------- GAZER — 공개 관측망 중계 ---------- */
+.gz-box{ position:relative; width:100%; aspect-ratio:16/9; background:#080807;
+  border:1px solid var(--line2); overflow:hidden; margin:18px 0 0; }
+.gz-box video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  filter:grayscale(.88) contrast(1.1) brightness(.92); opacity:0; transition:opacity .8s ease; }
+.gz-box.live video{ opacity:1; }
+.gz-scan{ position:absolute; left:0; right:0; top:0; height:1px; pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(205,67,44,.55), transparent);
+  animation:gzScan 4.2s linear infinite; }
+@keyframes gzScan{ 0%{ transform:translateY(0); } 100%{ transform:translateY(100%); } }
+.gz-grid{ position:absolute; inset:0; pointer-events:none; opacity:.25;
+  background-image:linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px),
+                   linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px);
+  background-size:100% 14px, 14px 100%; }
+.gz-c{ position:absolute; width:14px; height:14px; border:1px solid rgba(205,67,44,.75); pointer-events:none; }
+.gz-c.tl{ left:8px; top:8px; border-right:none; border-bottom:none; }
+.gz-c.tr{ right:8px; top:8px; border-left:none; border-bottom:none; }
+.gz-c.bl{ left:8px; bottom:8px; border-right:none; border-top:none; }
+.gz-c.br{ right:8px; bottom:8px; border-left:none; border-top:none; }
+.gz-tag{ position:absolute; left:10px; top:24px; font-family:var(--mono); font-size:10px;
+  letter-spacing:.06em; color:var(--text); text-shadow:0 1px 3px #000; pointer-events:none;
+  max-width:70%; line-height:1.5; }
+.gz-tag i{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--rust);
+  margin-right:6px; animation:breathe 2.2s ease-in-out infinite; }
+.gz-coord{ position:absolute; right:10px; top:24px; font-family:var(--mono); font-size:9.5px;
+  color:var(--muted); text-align:right; text-shadow:0 1px 3px #000; pointer-events:none; line-height:1.6; }
+.gz-foot{ position:absolute; left:10px; right:10px; bottom:22px; display:flex;
+  justify-content:space-between; align-items:flex-end; font-family:var(--mono);
+  font-size:9.5px; color:var(--muted); text-shadow:0 1px 3px #000; pointer-events:none; }
+.gz-foot b{ color:var(--rust); font-weight:400; }
+.gz-state{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:10px; text-align:center; padding:24px; }
+.gz-box.live .gz-state{ display:none; }
+.gz-state .s1{ font-family:var(--eng); font-size:11px; font-weight:700; letter-spacing:.26em; color:var(--dim); }
+.gz-state .s2{ font-size:11px; color:var(--faint); line-height:1.7; max-width:340px; }
+.gz-bar{ display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+.gz-btn{ background:transparent; border:1px solid var(--line2); color:var(--muted);
+  font-family:var(--sans); font-size:11.5px; padding:8px 14px; border-radius:999px;
+  cursor:pointer; transition:color .18s, border-color .18s; }
+.gz-btn:hover{ color:var(--amber); border-color:var(--amber-dim); }
+.gz-btn:disabled{ opacity:.35; cursor:default; }
+.gz-key{ display:flex; gap:8px; margin-top:12px; }
+.gz-key input{ flex:1; min-width:0; background:transparent; border:none;
+  border-bottom:1px solid var(--line2); color:var(--text); font-family:var(--mono);
+  font-size:11.5px; padding:7px 2px; outline:none; }
+.gz-key input:focus{ border-bottom-color:var(--amber); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <section id="onboarding">
+    <button class="ob-back" id="obBack" type="button" hidden>← 뒤로</button>
+    <div class="ob-indicator" id="obIndicator" aria-label="진행 단계"><span class="ob-step-count" id="obStepCount">01 / 10</span><div class="ob-dots" id="obDots"></div></div>
+    <div id="ob-content"></div>
+  </section>
+
+  <main id="experience" hidden>
+    <div id="world">
+      <div class="city" id="city"></div>
+      <div class="hud-arc-top"></div>
+      <div class="hud-gaze right" id="gazeRight"></div>
+      <div class="hud-gaze left" id="gazeLeft"></div>
+      <div class="hud-gaze-label right" id="gazeLabelRight">피응시 · 우측</div>
+      <div class="hud-gaze-label left" id="gazeLabelLeft">피응시 · 좌측</div>
+
+      <div class="hud-readout" id="hudTax"><div class="rk">오늘 관측세</div><div class="rv" id="rvTax">₩0</div></div>
+      <div class="hud-readout" id="hudSaved"><div class="rk">차단으로 아낀 금액</div><div class="rv small saved" id="rvSaved">₩0</div></div>
+      <div class="hud-readout" id="hudVision"><div class="rk">시야 완성도</div><div class="rv" id="rvVision">100%</div></div>
+      <div class="hud-readout" id="hudDecid"><div class="rk">결정도</div><div class="rv small" id="rvDecid">0.71</div></div>
+
+      <div class="hud-feed" id="hudFeed"></div>
+
+      <div class="hud-budget">
+        <div class="hud-budget-head">
+          <span>오늘 예산 잔여 <b id="bdLeft">100%</b></span>
+          <span id="bdAmt">₩0 / ₩6,000</span>
+        </div>
+        <div class="hud-bar"><div class="hud-bar-fill" id="bdFill"></div></div>
+      </div>
+
+      <div class="world-hint" id="worldHint">화면을 3초간 눌러 눈을 감으세요 (SYSTEM)</div>
+    </div>
+
+    <div class="close-progress" id="closeProgress" style="--p:150%"></div>
+
+    <div id="system">
+      <div id="sysMenu">
+        <div class="sys-head" id="sysHead"></div>
+        <ul id="sysList"></ul>
+      </div>
+      <div id="sysPanel">
+        <div class="panel-back" id="panelBack">← 뒤로</div>
+        <button class="speak-btn" id="speakBtn" hidden>낭독</button>
+        <div class="panel-inner" id="panelInner"></div>
+      </div>
+    </div>
+
+    <div class="corner-brand" id="cornerBrand">IN-SIGHT OS · WEAR</div>
+  </main>
+
+  <video id="camFeed" playsinline muted autoplay></video>
+  <div class="cam-chip off" id="camChip" hidden>
+    <span class="dot"></span><span class="lbl" id="camLbl">카메라 꺼짐</span>
+    <span class="eb"><i id="camBar"></i></span>
+  </div>
+  <div class="aud-chip on" id="audChip" hidden>
+    <span class="aud-wave"><i></i><i></i><i></i><i></i></span>
+    <span class="lbl" id="audLbl">음성 안내 켜짐</span>
+  </div>
+
+  <div id="mirrorFlashFull" class="hidden"><span>탭하여 돌아가기</span></div>
+</div>
+
+<script type="module">
+import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
+const MODEL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+
+// 메인 스크립트가 폴링하는 공유 상태
+window.EYE = { supported:true, active:false, ready:false, closed:false, score:0, face:false, error:null };
+
+window.WEAR_startEye = async function(){
+  const EYE = window.EYE;
+  if(EYE.active) return true;
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    EYE.supported = false; EYE.error = '이 브라우저는 카메라를 지원하지 않습니다.'; return false;
+  }
+  const video = document.getElementById('camFeed');
+  let stream;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ video:{ width:320, height:240, facingMode:'user' } });
+  }catch(err){
+    EYE.errCode = (err && err.name) || 'UnknownError';
+    EYE.error = (EYE.errCode === 'NotAllowedError')
+      ? '카메라 권한이 거부되었습니다.'
+      : (EYE.errCode === 'NotFoundError' ? '카메라를 찾을 수 없습니다.' : '카메라를 열 수 없습니다.');
+    return false;
+  }
+  video.srcObject = stream;
+  try{ await video.play(); }catch(e){}
+
+  let landmarker;
+  try{
+    const fileset = await FilesetResolver.forVisionTasks(WASM);
+    const opts = {
+      baseOptions:{ modelAssetPath: MODEL, delegate:'GPU' },
+      outputFaceBlendshapes:true, runningMode:'VIDEO', numFaces:1
+    };
+    try{ landmarker = await FaceLandmarker.createFromOptions(fileset, opts); }
+    catch(e){ opts.baseOptions.delegate = 'CPU'; landmarker = await FaceLandmarker.createFromOptions(fileset, opts); }
+  }catch(err){
+    EYE.error = '눈 인식 모델을 불러오지 못했습니다. 네트워크를 확인해 주세요.';
+    stream.getTracks().forEach(t => t.stop());
+    return false;
+  }
+
+  EYE.active = true; EYE.ready = true; EYE.error = null;
+
+  const SHUT = 0.48, OPEN = 0.32;   // 히스테리시스
+  let last = -1, smooth = 0;
+
+  function tick(){
+    if(video.readyState >= 2 && video.currentTime !== last){
+      last = video.currentTime;
+      let res = null;
+      try{ res = landmarker.detectForVideo(video, performance.now()); }catch(e){}
+      const bs = res && res.faceBlendshapes && res.faceBlendshapes[0];
+      if(bs){
+        EYE.face = true;
+        let l = 0, r = 0;
+        for(const c of bs.categories){
+          if(c.categoryName === 'eyeBlinkLeft') l = c.score;
+          else if(c.categoryName === 'eyeBlinkRight') r = c.score;
+        }
+        const raw = (l + r) / 2;
+        smooth = smooth * 0.55 + raw * 0.45;
+        EYE.score = smooth;
+        if(!EYE.closed && smooth > SHUT) EYE.closed = true;
+        else if(EYE.closed && smooth < OPEN) EYE.closed = false;
+      } else {
+        // 얼굴이 안 잡히면 감음으로 치지 않는다 (기기를 벗은 상태)
+        EYE.face = false; EYE.score = 0; EYE.closed = false;
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+  return true;
+};
+</script>
+
+<script>
+(function(){
+  "use strict";
+
+  /* =========================================================
+     데이터 모델
+     ========================================================= */
+
+  // 시야 필터 — 내가 보는 것. cost = 하루 관측세(원), vision = 시야 기여도(pt)
+  var VIEW_LAYERS = [
+    { key:'ad',      name:'옥외 광고 · 간판',   short:'광고', desc:'상업 목적으로 시야에 배치된 면',        cost:1420, vision:2 },
+    { key:'face',    name:'타인의 얼굴',        short:'얼굴', desc:'식별 가능한 정면 · 측면 형태',          cost:1180, vision:11 },
+    { key:'emotion', name:'표정 · 감정 신호',   short:'표정', desc:'타인의 상태를 읽는 레이어',             cost:760,  vision:6 },
+    { key:'crowd',   name:'군중',               short:'군중', desc:'3인 이상 집합. 단위 과금이 아닌 면적 과금', cost:610, vision:5 },
+    { key:'brand',   name:'브랜드 · 로고',      short:'로고', desc:'의류 · 차량 · 포장에 부착된 표식',      cost:540,  vision:2 },
+    { key:'income',  name:'가격 · 소득 신호',   short:'소득', desc:'가격표, 소지품 등급, 주거 등급',        cost:480,  vision:3 },
+    { key:'age',     name:'노화 · 피로 징후',   short:'노화', desc:'타인의 나이와 피로를 추정하는 레이어',  cost:420,  vision:4 },
+    { key:'news',    name:'속보 · 알림 피드',   short:'속보', desc:'요청하지 않은 정보의 삽입',             cost:390,  vision:2 },
+    { key:'body',    name:'거리의 신체',        short:'신체', desc:'부상 · 노숙 · 응급 상황',               cost:300,  vision:6 }
+  ];
+
+  // 노출 필터 — 남이 나에게서 읽는 것. dec = 결정도 기여, fee = 연 유지비(만원)
+  var EXPOSE = [
+    { key:'shape',   name:'얼굴 형태',            desc:'정면 기준. 끄면 아무도 아닌 사람이 됩니다.', dec:0.14, fee:18 },
+    { key:'past',    name:'2019년 이전의 형태',   desc:'과거 기록과의 연결',                        dec:0.11, fee:13 },
+    { key:'emotion', name:'감정',                 desc:'지금 무엇을 느끼는지',                      dec:0.09, fee:11 },
+    { key:'gaze',    name:'시선 방향',            desc:'무엇을 보고 있는지',                        dec:0.07, fee:8 },
+    { key:'age',     name:'나이',                 desc:'추정 연령대',                               dec:0.06, fee:7 },
+    { key:'income',  name:'소득 신호',            desc:'소지품과 옷의 등급',                        dec:0.05, fee:6 },
+    { key:'voice',   name:'목소리의 결',          desc:'말하지 않아도 남는 성문',                   dec:0.05, fee:6 },
+    { key:'fatigue', name:'피로',                 desc:'수면 부족 · 회복 상태',                     dec:0.04, fee:5 }
+  ];
+
+  var DEC_BASE = 0.10;                       // 전부 차단해도 남는 결정도
+  var FULL_DAILY = VIEW_LAYERS.reduce(function(a,l){ return a+l.cost; }, 0); // 6,100
+  var FULL_VISION = VIEW_LAYERS.reduce(function(a,l){ return a+l.vision; }, 0); // 41
+  var FAMILY = ['등록 가족 3인'];
+
+  var S = {
+    profile: { job:null, age:null, sex:null },
+    blocked: {},          // 시야 필터: key -> true(차단)
+    expose: {},           // 노출 필터: key -> true(허용)
+    budgetDaily: 6000,
+    spent: 0,             // 오늘 누적 관측세
+    saved: 0,             // 오늘 누적 절약
+    passed: 0,            // 통과 건수
+    blockedCount: 0,      // 차단 건수
+    byLayer: {},          // key -> {pass, block}
+    monthDayIndex: 13,    // 이번 달 경과 일수(오늘 이전)
+    yearDayIndex: 194,
+    forced: false         // 예산 초과로 전면 블러 처리된 상태
+  };
+  EXPOSE.forEach(function(e){ S.expose[e.key] = true; });   // 기본값: 전부 허용 = 결정도 0.71
+  VIEW_LAYERS.forEach(function(l){ S.byLayer[l.key] = { pass:0, block:0 }; });
+
+  /* =========================================================
+     계산
+     ========================================================= */
+
+  function isBlocked(k){ return S.forced || !!S.blocked[k]; }
+  function blockedList(){ return VIEW_LAYERS.filter(function(l){ return S.blocked[l.key]; }); }
+  function allowedList(){ return VIEW_LAYERS.filter(function(l){ return !S.blocked[l.key]; }); }
+  function dailyProjTax(){ return allowedList().reduce(function(a,l){ return a+l.cost; }, 0); }
+  function dailyProjSaved(){ return FULL_DAILY - dailyProjTax(); }
+  function visionPct(){ return 100 - blockedList().reduce(function(a,l){ return a+l.vision; }, 0); }
+  function decidedness(){
+    return EXPOSE.reduce(function(a,e){ return a + (S.expose[e.key] ? e.dec : 0); }, DEC_BASE);
+  }
+  function holdFee(){ // 만원/년
+    return EXPOSE.reduce(function(a,e){ return a + (S.expose[e.key] ? e.fee : 0); }, 0);
+  }
+  function annualTax(){ return dailyProjTax() * 365; }
+  function annualSaved(){ return dailyProjSaved() * 365; }
+  function leftoverPct(){
+    if(!S.budgetDaily) return 100;
+    return Math.max(0, Math.round((1 - S.spent/S.budgetDaily) * 100));
+  }
+  function monthSpent(){ return dailyProjTax()*S.monthDayIndex + S.spent; }
+  function monthBudget(){ return S.budgetDaily ? S.budgetDaily*30 : 0; }
+  function monthLeftoverPct(){
+    if(!monthBudget()) return 100;
+    return Math.max(0, Math.round((1 - monthSpent()/monthBudget()) * 100));
+  }
+
+  function won(v){ return '₩' + Math.round(v).toLocaleString('ko-KR'); }
+  function manwon(v){ return (Math.round(v*10)/10).toFixed(1).replace(/\.0$/,'') + '만원'; }
+  function wonToMan(v){ return manwon(v/10000); }
+  function escapeHtml(s){ var d=document.createElement('div'); d.innerText=s; return d.innerHTML; }
+
+  /* =========================================================
+     온보딩
+     ========================================================= */
+
+  var ob = document.getElementById('ob-content');
+  var onboarding = document.getElementById('onboarding');
+  var obEyeRaf = null;
+  var OB_DISPOSE = [];
+  function setContent(html){
+    if(obEyeRaf){ cancelAnimationFrame(obEyeRaf); obEyeRaf = null; }
+    OB_DISPOSE.forEach(function(f){ try{ f(); }catch(e){} });
+    OB_DISPOSE = [];
+    ob.innerHTML = html; onboarding.scrollTop = 0;
+  }
+
+  /* ---------- 온보딩 뒤로가기 ----------
+     각 단계는 들어올 때 자기 이전 단계를 등록한다.
+     토큰은 뒤로 간 뒤에 이전 단계의 타이머가 되살아나는 것을 막는다. */
+  var OB_PREV = null, OB_TOKEN = 0;
+  var OB_TOTAL = 10;
+  function obPaintIndicator(step){
+    var wrap = document.getElementById('obIndicator');
+    var dots = document.getElementById('obDots');
+    var count = document.getElementById('obStepCount');
+    if(!wrap || !dots || !count) return;
+    if(!dots.children.length){
+      for(var i=1;i<=OB_TOTAL;i++){ var d=document.createElement('i'); d.className='ob-dot'; dots.appendChild(d); }
+    }
+    step = Math.max(1, Math.min(OB_TOTAL, step || 1));
+    count.textContent = String(step).padStart(2,'0') + ' / ' + String(OB_TOTAL).padStart(2,'0');
+    Array.prototype.forEach.call(dots.children,function(d,i){
+      d.className='ob-dot' + (i+1===step?' on':(i+1<step?' done':''));
+    });
+  }
+  function stageEnter(prev, step){
+    OB_PREV = prev || null;
+    OB_TOKEN++;
+    var b = document.getElementById('obBack');
+    if(b) b.hidden = !OB_PREV;
+    obPaintIndicator(step);
+    return OB_TOKEN;
+  }
+  (function(){
+    var b = document.getElementById('obBack');
+    if(!b) return;
+    b.addEventListener('click', function(){
+      if(!OB_PREV) return;
+      var p = OB_PREV;
+      shutUp();
+      p();
+    });
+  })();
+  function eye(){ return window.EYE || { active:false, closed:false, score:0, face:false }; }
+  var EYE_HOLD_MS = 3000;
+
+  /* ================= 음성 안내 =================
+     눈을 감으면 화면을 볼 수 없으므로, 그동안의 UI는 소리다. */
+  // 클릭할 때마다 자동으로 낭독하는 동작은 없앴다.
+  // 다만 캘리브레이션 안내와 three-two-one 카운트다운은 진행에 필요하므로 남긴다.
+  // 전부 끄고 싶으면 우측 하단 음성 칩을 누른다.
+  var AUD = { on:true, voice:null, voiceEn:null, talking:false };
+
+  function pickVoice(){
+    if(!window.speechSynthesis) return;
+    var vs = window.speechSynthesis.getVoices() || [];
+    // 뉴럴·프리미엄 보이스는 너무 사람 같다. 로컬 합성 보이스를 우선한다.
+    function rank(list){
+      var human = /neural|premium|enhanced|natural|siri|google\s|wavenet/i;
+      var synth = /compact|espeak|microsoft|eloquence|novelty/i;
+      var local = list.filter(function(v){ return v.localService !== false; });
+      var pool  = local.length ? local : list;
+      return pool.filter(function(v){ return synth.test(v.name); })[0]
+          || pool.filter(function(v){ return !human.test(v.name); })[0]
+          || pool[0] || null;
+    }
+    AUD.voice   = rank(vs.filter(function(v){ return /^ko/i.test(v.lang); }));
+    AUD.voiceEn = rank(vs.filter(function(v){ return /^en/i.test(v.lang); }));
+  }
+  if(window.speechSynthesis){
+    pickVoice();
+    window.speechSynthesis.addEventListener('voiceschanged', pickVoice);
+  }
+
+  function paintAud(){
+    var c = document.getElementById('audChip');
+    if(!c) return;
+    c.classList.toggle('on', AUD.on);
+    c.classList.toggle('talking', AUD.talking);
+    document.getElementById('audLbl').textContent = AUD.on ? '음성 안내 켜짐' : '음성 안내 꺼짐';
+  }
+
+  /* ================= 기계 음색 =================
+     브라우저 TTS 는 합성된 음성 자체를 가공할 수 없다. 그래서
+     (1) 음정을 내리고 (2) 어절을 짧게 끊어 억양을 죽이고
+     (3) 그 아래에 캐리어 톤과 신호음을 따로 깔아 기계처럼 들리게 한다. */
+  var MACHINE = { pitch:0.60, rate:0.97 };
+  var AC = null, humOsc = null, humGain = null;
+
+  function ac(){
+    if(!AC){
+      try{ AC = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch(e){ return null; }
+    }
+    if(AC.state === 'suspended'){ try{ AC.resume(); }catch(e){} }
+    return AC;
+  }
+
+  // 안내 시작을 알리는 2음 신호
+  function blip(){
+    var c = ac(); if(!c) return;
+    var t0 = c.currentTime;
+    [[1180, 0], [1760, 0.05]].forEach(function(p){
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = 'square';
+      o.frequency.setValueAtTime(p[0], t0 + p[1]);
+      g.gain.setValueAtTime(0.0001, t0 + p[1]);
+      g.gain.exponentialRampToValueAtTime(0.03, t0 + p[1] + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + p[1] + 0.055);
+      o.connect(g); g.connect(c.destination);
+      o.start(t0 + p[1]); o.stop(t0 + p[1] + 0.08);
+    });
+  }
+
+  // 말하는 동안 아래에 깔리는 캐리어 — 기기가 돌아가는 소리
+  function humOn(){
+    var c = ac(); if(!c || humOsc) return;
+    humOsc = c.createOscillator();
+    var det = c.createOscillator();
+    humGain = c.createGain();
+    var lp = c.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 220;
+    humOsc.type = 'sawtooth'; humOsc.frequency.value = 57;
+    det.type = 'sine'; det.frequency.value = 85.5;
+    humGain.gain.setValueAtTime(0.0001, c.currentTime);
+    humGain.gain.linearRampToValueAtTime(0.016, c.currentTime + 0.18);
+    humOsc.connect(lp); det.connect(lp); lp.connect(humGain); humGain.connect(c.destination);
+    humOsc.start(); det.start();
+    humOsc._det = det;
+  }
+  function humOff(){
+    if(!humOsc || !AC) return;
+    var o = humOsc, g = humGain, t = AC.currentTime;
+    humOsc = null; humGain = null;
+    try{
+      g.gain.cancelScheduledValues(t);
+      g.gain.setValueAtTime(g.gain.value, t);
+      g.gain.linearRampToValueAtTime(0.0001, t + 0.22);
+      o.stop(t + 0.26); if(o._det) o._det.stop(t + 0.26);
+    }catch(e){}
+  }
+
+  function shutUp(){
+    if(window.speechSynthesis) window.speechSynthesis.cancel();
+    humOff();
+    AUD.talking = false; paintAud();
+  }
+
+  // TTS가 기호를 그대로 읽지 않도록 말로 바꾼다
+  function spClean(t){
+    return String(t)
+      .replace(/₩\s?([\d,]+)/g, function(m,n){ return n.replace(/,/g,'') + '원'; })
+      .replace(/([\d.]+)\s?%/g, '$1퍼센트')
+      .replace(/\s*·\s*/g, ', ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  // 문장을 짧은 토막으로 끊는다. 억양이 이어지지 않아 기계가 읽는 것처럼 들린다.
+  function chunkText(t){
+    var marked = String(t)
+      .replace(/([.?!])\s+/g, '$1\u0000')
+      .replace(/\s*,\s*/g, ',\u0000');
+    var out = [];
+    marked.split('\u0000').forEach(function(part){
+      part = part.trim();
+      if(!part) return;
+      var w = part.split(/\s+/);
+      for(var i=0; i<w.length; i+=3) out.push(w.slice(i, i+3).join(' '));
+    });
+    return out.filter(Boolean);
+  }
+
+  // 안내가 끝나는 시점을 알아야 하는 곳이 있다. opts.onEnd 로 알린다.
+  // 말할 수 없는 상태면 false 를 돌려준다.
+  function say(text, opts){
+    opts = opts || {};
+    if(!AUD.on || !text || !window.speechSynthesis) return false;
+    var en = (opts.lang === 'en');
+    var body = en ? String(text) : spClean(text);
+    var parts = en ? [body] : chunkText(body);
+    if(!parts.length) return false;
+
+    function fire(){
+      if(!AUD.on) return;
+      if(opts.blip !== false) blip();
+      parts.forEach(function(seg, i){
+        var u = new SpeechSynthesisUtterance(seg);
+        u.lang = en ? 'en-US' : 'ko-KR';
+        try{
+          var pick = en ? AUD.voiceEn : AUD.voice;
+          if(pick) u.voice = pick;
+        }catch(e){ AUD.voice = null; AUD.voiceEn = null; }
+        u.rate  = (opts.rate || 1) * MACHINE.rate;
+        u.pitch = MACHINE.pitch;   // 토막마다 같은 음정 — 억양이 생기지 않는다
+        if(i === 0) u.onstart = function(){ AUD.talking = true; humOn(); paintAud(); };
+        u.onend = u.onerror = function(){
+          var live = window.speechSynthesis.speaking || window.speechSynthesis.pending;
+          AUD.talking = live;
+          if(!live) humOff();
+          paintAud();
+          if(i === parts.length-1 && opts.onEnd){
+            var done = opts.onEnd; opts.onEnd = null; done();
+          }
+        };
+        window.speechSynthesis.speak(u);
+      });
+    }
+
+    if(opts.interrupt){
+      window.speechSynthesis.cancel();
+      // 크롬은 cancel 직후의 speak 를 삼키는 일이 있다
+      setTimeout(fire, 60);
+    } else {
+      fire();
+    }
+    return true;
+  }
+
+  // 숫자는 쉼표를 빼야 TTS가 끊지 않고 읽는다
+  function spWon(v){ return Math.round(v) + '원'; }
+  function spPct(v){ return Math.round(v) + '퍼센트'; }
+  function spMan(v){ return (Math.round(v*10)/10).toFixed(1).replace(/\.0$/,'') + '만원'; }
+
+  function stageCamera(){
+    stageEnter(null,1);
+    setContent(
+      '<div class="breathe-dot"></div>' +
+      '<div class="voice-line">지금부터 시선을 스캔하겠습니다.</div>' +
+      '<button class="ghost-btn" id="bCam">카메라를 허용합니다</button>' +
+      '<div class="cam-err" id="camErr"' + (envNote() ? '' : ' style="display:none;"') + '>' + envNote() + '</div>' +
+      '<div class="micro">이 단계는 건너뛸 수 없습니다. 카메라를 허용해야 다음으로 넘어갑니다.<br>' +
+      '영상은 기기 밖으로 나가지 않습니다. 눈꺼풀 개폐 값만 계산됩니다.</div>'
+    );
+    var btn = document.getElementById('bCam');
+    var err = document.getElementById('camErr');
+    btn.onclick = function(){
+      btn.disabled = true; btn.textContent = '눈을 찾는 중…';
+      var wait = 0;
+      (function go(){
+        if(!window.WEAR_startEye){
+          if(wait++ > 120){ fail('눈 인식 모듈을 불러오지 못했습니다.'); return; }
+          setTimeout(go, 100); return;
+        }
+        window.WEAR_startEye().then(function(ok){
+          if(ok){ stageWear(); }
+          else { fail((window.EYE && window.EYE.error) || '카메라를 열 수 없습니다.'); }
+        }).catch(function(){ fail('카메라를 열 수 없습니다.'); });
+      })();
+    };
+    function fail(msg){
+      btn.disabled = false; btn.textContent = '다시 시도';
+      err.style.display = 'block';
+      var why = envNote();
+      if(!why && (window.EYE && window.EYE.errCode === 'NotAllowedError')){
+        why = '브라우저 주소창의 카메라 아이콘에서 이 사이트를 허용으로 바꾼 뒤 다시 시도하세요.';
+      }
+      err.innerHTML = msg + (why ? '<br>' + why : '') +
+        '<br>카메라 없이는 진행할 수 없습니다. 허용한 뒤 다시 시도하세요.<br>' + envDiag();
+    }
+  }
+
+  function inFrame(){
+    try { return window.self !== window.top; } catch(e){ return true; }
+  }
+  function framePolicyBlocked(){
+    if(!inFrame()) return false;
+    try{
+      if(document.featurePolicy && document.featurePolicy.allowsFeature)
+        return !document.featurePolicy.allowsFeature('camera');
+    }catch(e){}
+    return true; // 프레임 안이면 일단 차단으로 가정
+  }
+  function insecure(){
+    return location.protocol === 'file:' || !window.isSecureContext;
+  }
+  function frameMsg(){
+    return '<b style="color:var(--text); font-weight:400;">미리보기 프레임 안에서는 카메라가 차단됩니다.</b><br>' +
+           '이 파일을 내려받아 브라우저 탭에서 직접 열면 동작합니다.';
+  }
+  function insecureMsg(){
+    return '파일을 직접 연 상태라 카메라가 막힐 수 있습니다. 폴더에서 ' +
+           '<code style="font-family:var(--mono)">python3 -m http.server</code> 를 실행하고 ' +
+           'localhost 로 여세요.';
+  }
+  function envNote(){
+    if(framePolicyBlocked()) return frameMsg();
+    if(insecure()) return insecureMsg();
+    return '';
+  }
+  function envDiag(){
+    return '<span style="color:var(--faint); font-family:var(--mono); font-size:10px;">' +
+      location.protocol + ' · ' + (inFrame() ? 'iframe' : 'top') +
+      ' · secure ' + (window.isSecureContext ? 'y' : 'n') + '</span>';
+  }
+
+  function showChip(){
+    var chip = document.getElementById('camChip');
+    chip.hidden = false;
+    chip.classList.remove('off');
+    chip.addEventListener('click', function(e){
+      e.stopPropagation();
+      document.getElementById('camFeed').classList.toggle('show');
+    });
+  }
+
+  function showAudChip(){
+    var chip = document.getElementById('audChip');
+    chip.hidden = false;
+    paintAud();
+    chip.addEventListener('click', function(e){
+      e.stopPropagation();
+      AUD.on = !AUD.on;
+      if(!AUD.on) shutUp(); else say('음성 안내를 켰습니다.', {interrupt:true});
+      paintAud();
+    });
+    chip.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+  }
+
+  /* ---------- 시선 캘리브레이션 ----------
+     감음 3초 → 뜸 3초 → 정보 수집 → 확인 */
+
+  function calibPhase(instr, wantClosed, hint, next){
+    var tk = OB_TOKEN;
+    var live = eye().active;
+    setContent(
+      '<div class="calib-instr">' + instr + '</div>' +
+      '<div class="calib-num" id="calibNum"></div>' +
+      '<div class="calib-hint" id="calibHint">' + (live ? '' : hint) + '</div>' +
+      '<div class="calib-track"><i id="calibBar"></i></div>'
+    );
+
+    var num = document.getElementById('calibNum');
+    var hintEl = document.getElementById('calibHint');
+    var bar = document.getElementById('calibBar');
+    var held = 0, prev = 0, shown = 0, spoken = 0, started = false;
+
+    // '눈을 감아주세요' 안내 뒤 THREE → TWO → ONE을 또렷하게 센다.
+    var spoke = say(instr, { interrupt:true, onEnd:begin, rate:0.95 });
+    var guard = setTimeout(begin, spoke ? 1700 : 500);
+
+    function begin(){
+      if(started || tk !== OB_TOKEN) return;
+      started = true;
+      clearTimeout(guard);
+      prev = performance.now();
+      obEyeRaf = requestAnimationFrame(tick);
+    }
+
+    function tick(now){
+      if(tk !== OB_TOKEN) return;
+      var dt = now - prev; prev = now;
+      var E = eye();
+      var ok = !live || (E.face && (wantClosed ? E.closed : !E.closed));
+
+      if(ok){
+        held += dt;
+        if(live) hintEl.textContent = '';
+      } else {
+        held = 0; spoken = 0;
+        hintEl.textContent = !E.face
+          ? '얼굴이 보이지 않습니다'
+          : (wantClosed ? '아직 눈을 떠주세요' : '눈을 크게 떠주세요');
+      }
+
+      var t = Math.min(1, held/3000);
+      bar.style.width = (t*100).toFixed(1) + '%';
+
+      var n = Math.max(1, 3 - Math.floor(held/1000));
+      if(n !== shown){ shown = n; num.innerHTML = '<span>' + n + '</span>'; }
+      if(ok && n !== spoken){ spoken = n; say(['','One','Two','Three'][n], {interrupt:true, rate:1.0, lang:'en', blip:false}); }
+
+      if(t >= 1){ next(); return; }
+      obEyeRaf = requestAnimationFrame(tick);
+    }
+  }
+
+  function stageWear(){
+    stageEnter(stageCamera,2);
+    calibPhase('눈을 감아주세요', true, '카메라 없이 진행 중입니다', stageLookAt);
+  }
+
+  function stageLookAt(){
+    stageEnter(stageWear,3);
+    calibPhase('눈을 떠주세요', false, '카메라 없이 진행 중입니다', stageGathering);
+  }
+
+  function stageGathering(){
+    var tk = stageEnter(stageWear,3);
+    setContent('<div class="gather-word calib-eng" id="gatherWord"></div>');
+    var word = 'GATHERING INFORMATION';
+    var host = document.getElementById('gatherWord');
+    host.innerHTML = word.split('').map(function(c, i){
+      return c === ' ' ? '<b style="width:.4em; display:inline-block;">&nbsp;</b>'
+                       : '<b style="animation-delay:' + (i*0.055).toFixed(2) + 's">' + c + '</b>';
+    }).join('');
+    say('gathering information', {interrupt:true, lang:'en'});
+    setTimeout(function(){ if(tk === OB_TOKEN) stageVerified(); }, 2600);
+  }
+
+  function stageVerified(){
+    var tk = stageEnter(stageWear,3);
+    var hex = function(n){ var o=''; for(var i=0;i<n;i++) o += '0123456789ABCDEF'[Math.floor(Math.random()*16)]; return o; };
+    setContent(
+      '<div class="verify-mark">' +
+        '<div class="vf-stage">' +
+          '<svg viewBox="0 0 200 200">' +
+            '<path class="vf-br b1" d="M 10 58 L 10 10 L 58 10"/>' +
+            '<path class="vf-br b2" d="M 142 10 L 190 10 L 190 58"/>' +
+            '<path class="vf-br b3" d="M 190 142 L 190 190 L 142 190"/>' +
+            '<path class="vf-br b4" d="M 58 190 L 10 190 L 10 142"/>' +
+            '<circle class="vf-ring" cx="100" cy="100" r="74"/>' +
+            '<circle class="vf-iris" cx="100" cy="100" r="42"/>' +
+            '<line class="vf-cross" x1="100" y1="78" x2="100" y2="88"/>' +
+            '<line class="vf-cross" x1="100" y1="112" x2="100" y2="122"/>' +
+            '<line class="vf-cross" x1="78" y1="100" x2="88" y2="100"/>' +
+            '<line class="vf-cross" x1="112" y1="100" x2="122" y2="100"/>' +
+          '</svg>' +
+          '<div class="vf-scan"></div>' +
+        '</div>' +
+        '<div class="verify-word calib-eng" id="vfWord">&nbsp;</div>' +
+        '<div class="vf-meta">ID ' + hex(4) + '-' + hex(4) + ' · <b>LOCKED</b></div>' +
+      '</div>' +
+      '<div class="vf-flash"></div>'
+    );
+    scrambleTo(document.getElementById('vfWord'), 'VERIFIED', 560, 1000);
+    say('verified', {interrupt:true, lang:'en'});
+    setTimeout(function(){ if(tk === OB_TOKEN) stageDecidedness(); }, 2500);
+  }
+
+  /* 글자를 무작위로 굴리다 왼쪽부터 자리를 잡는 디코딩 연출 */
+  function scrambleTo(el, word, delay, dur){
+    if(!el) return;
+    var POOL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    var t0 = null;
+    function frame(now){
+      if(!el.isConnected) return;
+      if(t0 === null) t0 = now;
+      var t = Math.min(1, (now - t0) / dur);
+      var settled = Math.floor(Math.pow(t, .78) * word.length + 0.0001);
+      var out = '';
+      for(var i=0;i<word.length;i++){
+        out += (i < settled) ? word.charAt(i) : POOL.charAt(Math.floor(Math.random()*POOL.length));
+      }
+      el.textContent = out;
+      if(t < 1) requestAnimationFrame(frame);
+      else el.textContent = word;
+    }
+    setTimeout(function(){ if(el.isConnected) requestAnimationFrame(frame); }, delay);
+  }
+
+  /* ---------- 결정도 구간 ---------- */
+  var DEC_BANDS = [
+    { lo:0.00, hi:0.30, name:'소실',
+      desc:'얼굴이 기억되지 않습니다. 재회, 계약, 추천이 성립하지 않습니다.' },
+    { lo:0.30, hi:0.55, name:'유동',
+      desc:'다르게 보일 여지가 큽니다. 대신 어떤 인상도 쌓이지 않습니다.' },
+    { lo:0.55, hi:0.78, name:'정착',
+      desc:'대체로 같은 사람으로 보입니다. 변동의 폭이 좁아지고 있습니다.' },
+    { lo:0.78, hi:1.00, name:'고착',
+      desc:'남이 본 형태가 당신보다 앞섭니다. 되돌리려면 재조정 비용이 듭니다.' }
+  ];
+  var SCANNED_DEC = 0.71;
+
+  function bandOf(v){
+    for(var i=0;i<DEC_BANDS.length;i++){
+      if(v < DEC_BANDS[i].hi || i === DEC_BANDS.length-1) return DEC_BANDS[i];
+    }
+    return DEC_BANDS[0];
+  }
+
+  var DEC_CODE = { '소실':'VANISHED', '유동':'FLUID', '정착':'SETTLED', '고착':'FIXED' };
+
+  // 반원 게이지 대신 0.00–1.00 계측 레일. 구간 폭이 곧 실제 범위 폭이다.
+  function decRailHtml(v){
+    var segs = DEC_BANDS.map(function(b, i){
+      var on = bandOf(v) === b;
+      var left = (b.lo * 100), w = ((b.hi - b.lo) * 100);
+      return '<div class="dcx-seg' + (on ? ' on' : '') + '" data-i="' + i + '" tabindex="0" ' +
+             'style="left:calc(' + left + '% + ' + (i ? 1 : 0) + 'px); ' +
+             'width:calc(' + w + '% - ' + (i && i < DEC_BANDS.length-1 ? 2 : 1) + 'px);">' +
+               '<u>' + DEC_CODE[b.name] + '</u><b>' + b.name + '</b>' +
+             '</div>';
+    }).join('');
+    return '<div class="dcx">' +
+      '<div class="vfx-head">' +
+        '<span class="vfx-kicker">DECIDEDNESS</span>' +
+        '<span class="vfx-rule"></span>' +
+        '<span class="vfx-kicker">SCAN · 06M</span>' +
+      '</div>' +
+      '<div class="dcx-big">' +
+        '<div class="dcx-val" id="dcxVal">0.00</div>' +
+        '<div class="dcx-band"><em>BAND</em><span id="dcxBand">' + bandOf(v).name + '</span></div>' +
+      '</div>' +
+      '<div class="dcx-rail" id="dcxRail">' + segs +
+        '<div class="dcx-mark" id="dcxMark" style="left:0%;">' +
+          '<b id="dcxMarkVal">0.00</b><i></i><u>YOU</u></div>' +
+      '</div>' +
+      '<div class="dcx-scale">' +
+        '<span style="left:0%">0.00</span><span style="left:30%">0.30</span>' +
+        '<span style="left:55%">0.55</span><span style="left:78%">0.78</span>' +
+        '<span style="left:100%">1.00</span>' +
+      '</div>' +
+    '</div>';
+  }
+
+  // 레전드는 필터 화면과 같은 문법으로 쌓는다
+  function buildDecLegend(host, v){
+    var active = bandOf(v);
+    DEC_BANDS.forEach(function(b, i){
+      var on = (b === active);
+      var row = vfxRow({
+        i: i + 1, name: b.name, code: DEC_CODE[b.name], desc: b.desc,
+        figure: b.lo.toFixed(2) + '–' + b.hi.toFixed(2), unit: '',
+        pt: on ? '현재 구간' : '', on: on, cut: false
+      });
+      row.classList.add('dec-row');
+      row.removeAttribute('role');
+      row.removeAttribute('aria-checked');
+      row.setAttribute('data-i', i);
+      host.appendChild(row);
+    });
+  }
+
+  // 현재 구간은 늘 켜져 있고, 나머지는 손을 얹은 동안만 두 번째 색으로 밝아진다
+  function wireDecLegend(v){
+    var rows = document.querySelectorAll('#decLegend .vfx-row');
+    var segs = document.querySelectorAll('.dcx-seg');
+    var activeIdx = DEC_BANDS.indexOf(bandOf(v));
+
+    function hoverBand(i){
+      Array.prototype.forEach.call(rows, function(r, j){
+        r.classList.toggle('on', j === activeIdx);
+        r.classList.toggle('hov', i !== null && j === i && j !== activeIdx);
+        var tag = r.querySelector('.vfx-pt');
+        if(tag) tag.textContent = (j === activeIdx) ? '현재 구간' : '';
+      });
+      Array.prototype.forEach.call(segs, function(sg, j){
+        sg.classList.toggle('on', j === activeIdx);
+        sg.classList.toggle('hov', i !== null && j === i && j !== activeIdx);
+      });
+    }
+
+    // 화면이 뜬 순간 커서가 우연히 구간 위에 있어도 현재 구간이 유지되도록,
+    // 실제 움직임(mousemove)이 있어야 호버로 인정한다
+    var armed = false;
+    function bind(el, i){
+      el.addEventListener('mousemove', function(){ armed = true; hoverBand(i); });
+      el.addEventListener('mouseenter', function(){ if(armed) hoverBand(i); });
+      el.addEventListener('mouseleave', function(){ hoverBand(null); });
+      el.addEventListener('focus', function(){ hoverBand(i); });
+      el.addEventListener('blur', function(){ hoverBand(null); });
+    }
+    Array.prototype.forEach.call(rows, bind);
+    Array.prototype.forEach.call(segs, bind);
+    var legend = document.getElementById('decLegend');
+    legend.addEventListener('mouseleave', function(){ hoverBand(null); });
+    var rail = document.getElementById('dcxRail');
+    if(rail) rail.addEventListener('mouseleave', function(){ hoverBand(null); });
+    hoverBand(null);
+  }
+
+  // 0.00 에서 실제 값까지 굴러 올라간다
+  function countUpDec(els, target, dur){
+    els = els.filter(Boolean);
+    if(!els.length) return;
+    var t0 = null;
+    function step(now){
+      if(!els[0].isConnected) return;
+      if(t0 === null) t0 = now;
+      var t = Math.min(1, (now - t0) / dur);
+      var e = 1 - Math.pow(1 - t, 3);
+      var txt = (t < 1 ? target * e : target).toFixed(2);
+      els.forEach(function(el){ el.textContent = txt; });
+      if(t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function stageDecidedness(){
+    stageEnter(stageWear,4);
+    var v = SCANNED_DEC, b = bandOf(v);
+    setContent(
+      decRailHtml(v) +
+      '<div class="voice-line" style="margin-top:44px; animation-delay:1.0s;">당신의 결정도는 ' + v.toFixed(2) + ', ' + b.name + ' 구간입니다.</div>' +
+      '<div class="voice-line dim" style="animation-delay:1.6s; font-size:13px;">' + b.desc + '</div>' +
+      '<div class="vfx" style="margin-top:30px;"><div class="vfx-list" id="decLegend"></div></div>' +
+      '<div class="voice-line dim" style="animation-delay:2.2s; font-size:12.5px; margin-top:22px;">' +
+        '지난 6개월간 당신을 오래 본 사람은 없고, 짧게 본 사람은 많았던 형태입니다.</div>' +
+      '<button class="ghost-btn" id="bNext5" style="opacity:0; animation:riseIn .6s 2.8s ease forwards;">계속</button>'
+    );
+    buildDecLegend(document.getElementById('decLegend'), v);
+    wireDecLegend(v);
+
+    // 마커가 0에서 제자리로 걸어가고, 숫자가 그 속도로 따라 오른다
+    setTimeout(function(){
+      var mark = document.getElementById('dcxMark');
+      if(mark) mark.style.left = (v * 100) + '%';
+      countUpDec([document.getElementById('dcxVal'),
+                  document.getElementById('dcxMarkVal')], v, 1050);
+    }, 260);
+
+    document.getElementById('bNext5').onclick = stageImageScan;
+  }
+
+  /* =========================================================
+     이미지 스캔 — 두상 스캔 데이터
+     ========================================================= */
+
+  // 제어점을 지나는 부드러운 곡선. 두상의 세로 프로파일을 만든다.
+  function crSpline(cps){
+    var us = [], vs = [];
+    cps.forEach(function(c){ us.push(c[0]); vs.push(c[1]); });
+    return function(u){
+      if(u <= us[0]) return vs[0];
+      if(u >= us[us.length-1]) return vs[vs.length-1];
+      var i = 0; while(i < us.length-2 && u > us[i+1]) i++;
+      var t = (u - us[i]) / (us[i+1] - us[i]);
+      var p0 = vs[Math.max(0,i-1)], p1 = vs[i], p2 = vs[i+1], p3 = vs[Math.min(vs.length-1,i+2)];
+      var t2 = t*t, t3 = t2*t;
+      return 0.5*((2*p1) + (-p0+p2)*t + (2*p0-5*p1+4*p2-p3)*t2 + (-p0+3*p1-3*p2+p3)*t3);
+    };
+  }
+  // u=0 턱끝 → u=1 정수리
+  var HD_W = crSpline([[0,0.03],[0.05,0.24],[0.13,0.40],[0.24,0.53],[0.36,0.62],
+                       [0.48,0.69],[0.60,0.72],[0.72,0.72],[0.84,0.665],[0.93,0.50],[1,0.06]]);
+  var HD_D = crSpline([[0,0.24],[0.08,0.42],[0.20,0.56],[0.34,0.70],[0.50,0.80],
+                       [0.66,0.86],[0.78,0.845],[0.88,0.74],[0.95,0.52],[1,0.08]]);
+  function gz(v, mu, sg){ var d = (v-mu)/sg; return Math.exp(-d*d); }
+
+  function headPt(th, u, M){
+    var W = HD_W(u), D = HD_D(u);
+    W *= 1 + (M.jaw-1)   * gz(u, 0.30, 0.16);
+    W *= 1 + (M.skull-1) * gz(u, 0.78, 0.20);
+    D *= 1 + (M.skull-1) * 0.8 * gz(u, 0.74, 0.22);
+    W *= 1 + (M.cheek-1) * 0.16 * gz(u, 0.40, 0.14);
+
+    var ct = Math.cos(th), st = Math.sin(th);
+    var f = ct > 0 ? ct : 0, b = ct < 0 ? -ct : 0, l = Math.abs(st);
+    var f2 = f*f, f3 = f2*f, f4 = f2*f2;
+
+    var X = W*st, Z = D*ct;
+    Z *= 1 - 0.13*f*l*l;                              // 얼굴 앞면은 평평하다
+    Z += 0.07*f*gz(u, 0.05, 0.09);                    // 턱끝
+    Z += 0.045*M.brow*f2*gz(u, 0.665, 0.05);          // 눈썹뼈
+    Z -= 0.055*f*Math.sqrt(f)*gz(u, 0.60, 0.045);     // 눈두덩
+    Z += 0.20*M.nose*f4*gz(u, 0.50, 0.10);            // 콧대
+    Z += 0.085*f4*f4*gz(u, 0.425, 0.035);             // 코끝
+    Z -= 0.035*f3*gz(u, 0.385, 0.028);                // 인중
+    Z += 0.05*f4*gz(u, 0.302, 0.035);                 // 입술
+    Z -= 0.03*f3*gz(u, 0.235, 0.03);                  // 아랫입술 아래
+    Z -= 0.055*b*gz(u, 0.70, 0.22);                   // 뒤통수
+    var ear = gz(u, 0.545, 0.065) * Math.exp(-Math.pow((ct+0.12)/0.32, 2));
+    X += 0.055*ear*(st >= 0 ? 1 : -1);
+
+    return [X, (u*2-1)*0.98*M.len, Z];
+  }
+
+  // 얼굴 위에 얹히는 이목구비 선 — (각도, 높이) 로 정의해 두면 두상을 따라 함께 돈다
+  function headFeatureCurves(M){
+    var out = [], i, s, t, pts;
+    function push(fn, n, closed){
+      pts = [];
+      for(i = 0; i <= n; i++){
+        var p = fn(i/n);
+        pts.push(headPt(p[0], p[1], M));
+      }
+      if(closed) pts.push(pts[0]);
+      out.push(pts);
+    }
+    [1,-1].forEach(function(sg){
+      var thc = sg*0.40, uc = 0.605;
+      push(function(k){ s = k*Math.PI*2;
+        return [thc + 0.26*Math.cos(s), uc + 0.030*Math.sin(s)*(0.85+0.15*Math.cos(s))]; }, 40, true);
+      push(function(k){ s = k*Math.PI*2;
+        return [thc + 0.085*Math.cos(s), uc + 0.011*Math.sin(s)]; }, 22, true);
+      push(function(k){ t = k*2-1;
+        return [thc + 0.34*t, 0.665 + 0.012*(1-t*t) - 0.007*t*sg]; }, 20);
+    });
+    push(function(k){ t = k*2-1; return [0.34*t, 0.302 + 0.010*Math.cos(Math.PI*t)]; }, 30);
+    push(function(k){ t = k*2-1; return [0.30*t, 0.322 + 0.008*(1-t*t)]; }, 26);
+    push(function(k){ t = k*2-1; return [0.30*t, 0.281 - 0.012*(1-t*t)]; }, 26);
+    [1,-1].forEach(function(sg){
+      push(function(k){ s = k*Math.PI*2;
+        return [sg*0.115 + 0.042*Math.cos(s), 0.427 + 0.009*Math.sin(s)]; }, 16, true);
+    });
+    return out;
+  }
+
+  var HD_LAT = 46, HD_LON = 74, HD_N = HD_LAT*HD_LON;
+
+  function buildHead(M){
+    var P = new Float32Array(HD_N*3), N = new Float32Array(HD_N*3), i = 0;
+    for(var a = 0; a < HD_LAT; a++){
+      var u = (a + 0.5)/HD_LAT;
+      for(var b = 0; b < HD_LON; b++){
+        var p = headPt(b/HD_LON*Math.PI*2, u, M);
+        P[i] = p[0]; P[i+1] = p[1]; P[i+2] = p[2];
+        var nx = p[0]/0.72, ny = p[1]/1.65, nz = p[2]/0.86;
+        var len = Math.sqrt(nx*nx + ny*ny + nz*nz) || 1;
+        N[i] = nx/len; N[i+1] = ny/len; N[i+2] = nz/len;
+        i += 3;
+      }
+    }
+    return { P:P, N:N, F:headFeatureCurves(M) };
+  }
+
+  /* ---------- 시대별 아카이브 ----------
+     기준 출생: 1997.04. 각 구간은 실제 년월과 나이를 갖는다.
+     pv / nv 는 라이프 타임라인 그래프의 위(긍정) · 아래(부정) 높이다. */
+  var BIRTH_Y = 1997, BIRTH_M = 4;
+
+  var IMG_ERAS = [
+    { code:'ERA 01', span:'0 — 7', name:'미분화', dec:0.04,
+      ym:'2001.04', age:4, pv:62, nv:12,
+      line:'관측 기록이 없습니다. 얼굴은 가족의 기억 안에서만 존재했습니다.',
+      M:{ len:0.90, jaw:0.74, cheek:1.55, brow:0.30, nose:0.60, skull:1.16 },
+      read:[8, 94, 12, 5],
+      traits:[18, 34, 42, 25, 78, 82, 74],
+      back:['보호해야 할 것', '흐릿하게 지나감', '누구의 아이', '기억되지 않음'],
+      pos:[['UNFORMED','미분화',5],['BORDERLESS','무경계',5],['UNTAXED','비과세',5],['UNEDITED','무편집',5],
+           ['WHOLE','온전',4],['UNGUARDED','무방비',4],['CURIOUS','호기',4],['FORGIVEN','면책',3]],
+      neg:[['UNRECORDED','기록없음',5],['VOICELESS','무발화',4],['DEPENDENT','피부양',4],['FRAGILE','취약',3],
+           ['UNVERIFIED','미검증',3],['INVISIBLE','비가시',3],['UNCONSENTED','비동의',3],['OVERWRITTEN','덧씌워짐',2]] },
+
+    { code:'ERA 02', span:'8 — 15', name:'모사', dec:0.19,
+      ym:'2009.04', age:12, pv:55, nv:29,
+      line:'주변의 얼굴을 따라 짓습니다. 아직 어떤 인상도 쌓이지 않습니다.',
+      M:{ len:0.95, jaw:0.84, cheek:1.30, brow:0.55, nose:0.78, skull:1.08 },
+      read:[26, 79, 27, 14],
+      traits:[34, 45, 58, 34, 64, 70, 48],
+      back:['아직 어리다', '누구와 비슷하다', '반의 누구', '구분되지 않음'],
+      pos:[['PLASTIC','가소',5],['MIMETIC','모사',5],['ADAPTIVE','적응',4],['UNCLAIMED','미등록',4],
+           ['RECOVERABLE','회복가능',4],['LOW-COST','저비용',4],['SOFT-EDGE','연경계',3],['OPEN-SET','열린집합',3]],
+      neg:[['VOLATILE','급변',4],['DERIVATIVE','파생',4],['COMPARED','비교됨',4],['UNSTABLE','불안정',3],
+           ['SORTED','분류됨',3],['RANKED','서열화',3],['PRE-SHAPED','선성형',3],['SELF-ERASING','자기지움',2]] },
+
+    { code:'ERA 03', span:'16 — 21', name:'노출', dec:0.38,
+      ym:'2015.04', age:18, pv:48, nv:57,
+      line:'처음으로 다수에게 기록됩니다. 관측량이 급증하고, 얼굴이 자료가 됩니다.',
+      M:{ len:1.00, jaw:0.93, cheek:1.12, brow:0.80, nose:0.92, skull:1.02 },
+      read:[43, 67, 49, 34],
+      traits:[46, 52, 62, 46, 56, 58, 36],
+      back:['눈에 띈다', '들떠 있다', '그 사진의 사람', '말이 옮겨진다'],
+      pos:[['VISIBLE','가시',5],['SEEKING','탐색',4],['EXPRESSIVE','표출',4],['NETWORKED','연결',4],
+           ['HIGH-RANGE','폭넓음',4],['ARCHIVED','기록개시',3],['UNPRICED','미가격',3],['RECLAIMABLE','회수가능',3]],
+      neg:[['EXPOSED','전면노출',5],['SCRAPED','수집됨',5],['MISREAD','오독',4],['UNSTABLE','불안정',4],
+           ['PERMANENT','영구화',4],['RATED','평점화',3],['SELF-EDITING','자기검열',3],['LEAKED','유출',3]] },
+
+    { code:'ERA 04', span:'22 — 27', name:'편집', dec:0.55,
+      ym:'2021.04', age:24, pv:58, nv:51,
+      line:'보여질 각도를 고르기 시작합니다. 고르지 않은 얼굴은 남지 않습니다.',
+      M:{ len:1.03, jaw:1.00, cheek:1.00, brow:0.95, nose:1.00, skull:1.00 },
+      read:[59, 53, 64, 52],
+      traits:[58, 68, 72, 60, 62, 64, 58],
+      back:['준비된 사람', '무난하다', '괜찮은 인상', '평가에 올라간다'],
+      pos:[['CURATED','편집됨',5],['LEGIBLE','판독가능',4],['INTENTIONAL','의도적',4],['EMPLOYABLE','고용가능',4],
+           ['SELF-AUTHORED','자기서술',3],['CONSISTENT','일관',3],['TRUSTED','신뢰',3],['RECOVERABLE','회복가능',2]],
+      neg:[['ANGLED','각도고정',4],['COSTED','과금개시',4],['PERFORMED','연기',4],['NARROWING','폭축소',3],
+           ['AUDITED','감사대상',3],['COMPARABLE','비교가능',3],['UNSPONTANEOUS','비자발',3],['MAINTAINED','유지비용',3]] },
+
+    { code:'ERA 05', span:'28 — 현재', name:'정착', dec:0.71,
+      ym:'2026.09', age:29, pv:51, nv:66,
+      line:'대체로 같은 사람으로 읽힙니다. 변동의 폭이 좁아지고 있습니다.',
+      M:{ len:1.05, jaw:1.07, cheek:0.94, brow:1.05, nose:1.05, skull:0.98 },
+      read:[74, 41, 82, 69],
+      traits:[72, 84, 82, 76, 70, 68, 78],
+      back:['믿을 만하다', '변함이 없다', '늘 그 사람', '예상한 대로'],
+      pos:[['SETTLED','정착',5],['CONSISTENT','일관',4],['TRUSTED','신뢰',4],['RECOGNISED','인지됨',4],
+           ['EFFICIENT','저마찰',4],['PREDICTABLE','예측가능',3],['AUTHORED','저작',3],['LOW-DRIFT','저변동',3]],
+      neg:[['BILLED','과세중',5],['NARROWING','폭축소',4],['TYPECAST','정형화',4],['PRE-JUDGED','선판단',4],
+           ['SURVEILLED','상시관측',4],['RIGID','경직',3],['UNSURPRISING','무의외',3],['UPKEEP-BOUND','유지구속',3]] },
+
+    { code:'ERA 06', span:'+10Y 예측', name:'고착', dec:0.88, pred:true,
+      ym:'2036.09', age:39, pv:33, nv:88,
+      line:'지금 속도가 유지될 경우의 추정입니다. 되돌리려면 재조정 비용이 발생합니다.',
+      M:{ len:1.07, jaw:1.13, cheek:0.84, brow:1.16, nose:1.10, skull:0.96 },
+      read:[87, 24, 94, 91],
+      traits:[55, 92, 28, 94, 38, 42, 88],
+      back:['정해진 사람', '바뀌지 않는다', '볼 필요가 없다', '이미 결론이 났다'],
+      pos:[['LEGIBLE','판독가능',5],['RELIABLE','확실',4],['AUTHORITATIVE','권위',4],['FRICTIONLESS','무마찰',4],
+           ['KNOWN','기지',4],['BANKABLE','담보가능',3],['SETTLED','정착',3],['EFFORTLESS','무노력',3]],
+      neg:[['FIXED','고착',5],['IRREVERSIBLE','비가역',5],['PRE-READ','선판독',5],['LOCKED-IN','잠김',4],
+           ['UNQUESTIONED','무검증',4],['COSTLY','고비용',4],['CLOSED-SET','닫힌집합',4],['UNCHOOSABLE','선택불가',4]] }
+  ];
+
+  var READ_KEYS = [
+    { k:'신뢰', e:'TRUST',     d:'처음 본 사람이 당신을 믿을 확률' },
+    { k:'접근', e:'APPROACH',  d:'말을 걸어도 된다고 판단할 확률' },
+    { k:'기억', e:'RETENTION', d:'하루 뒤에도 얼굴이 남아 있을 확률' },
+    { k:'판단', e:'JUDGEMENT', d:'보기 전에 이미 결론이 나 있을 확률' }
+  ];
+
+  // 앞면 지시선 — (각도, 높이, 화면쪽, 세로 위치, 읽기 항목)
+  var IMG_ANNO = [
+    { th:0.00, u:0.780, side:-1, slot:0.13, ri:3, part:'이마' },
+    { th:-0.40, u:0.605, side:1,  slot:0.34, ri:0, part:'눈매' },
+    { th:0.00, u:0.302, side:-1, slot:0.62, ri:1, part:'입' },
+    { th:0.36, u:0.140, side:1,  slot:0.82, ri:2, part:'턱선' }
+  ];
+
+  // 뒷면 지시선 — 돌아선 뒤 타인에게 남은 인상
+  var PI = Math.PI;
+  var IMG_BACK_ANNO = [
+    { th:PI,        u:0.800, side:-1, slot:0.15, bi:0, part:'먼저 오는 인상' },
+    { th:PI - 0.52, u:0.600, side:1,  slot:0.37, bi:1, part:'마주친 동안' },
+    { th:PI + 0.52, u:0.400, side:-1, slot:0.63, bi:2, part:'이름 없이 기억될 때' },
+    { th:PI,        u:0.190, side:1,  slot:0.85, bi:3, part:'지나간 뒤' }
+  ];
+
+  var HEAD_CACHE = null;
+  function headCache(){
+    if(!HEAD_CACHE) HEAD_CACHE = IMG_ERAS.map(function(e){ return buildHead(e.M); });
+    return HEAD_CACHE;
+  }
+
+  /* ---------- 캔버스 ---------- */
+  function mountHead(cv, startIdx, opts){
+    opts = opts || {};
+    var ctx = cv.getContext('2d');
+    var lastSide = null;   // 'front' | 'back' — 바뀔 때만 바깥에 알린다
+    var cache = headCache();
+    var cur = startIdx, from = startIdx, mixT = 1, mixDur = 700, mixT0 = 0;
+    var P = new Float32Array(HD_N*3), N = new Float32Array(HD_N*3);
+    var scatter = new Float32Array(HD_N);
+    for(var s = 0; s < HD_N; s++) scatter[s] = 0.35 + Math.random()*1.5;
+    var yaw = -0.45, pitch = 0.04, vy = 0, vx = 0, drag = false, px = 0, py = 0, moved = false;
+    var spinning = false, spinA = 0, spinB = 0, spinT0 = 0;   // 앞↔뒤 전환 트윈
+    var born = performance.now(), raf = null, dead = false;
+    var W = 0, H = 0, dpr = 1;
+    var bucketX = [], bucketY = [], LEVELS = 7;
+    for(var q = 0; q < LEVELS; q++){ bucketX.push([]); bucketY.push([]); }
+
+    function fit(){
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = cv.clientWidth; H = cv.clientHeight;
+      cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+    }
+    fit();
+    var onResize = function(){ fit(); };
+    window.addEventListener('resize', onResize);
+
+    function setEra(i){
+      if(i === cur) return;
+      from = cur; cur = i; mixT = 0; mixT0 = performance.now();
+    }
+
+    function blend(){
+      var A = cache[from], B = cache[cur];
+      var e = mixT >= 1 ? 1 : 1 - Math.pow(1 - mixT, 3);
+      for(var i = 0; i < HD_N*3; i++){
+        P[i] = A.P[i] + (B.P[i] - A.P[i])*e;
+        N[i] = A.N[i] + (B.N[i] - A.N[i])*e;
+      }
+    }
+    blend();
+
+    function pointerDown(e){
+      drag = true; moved = false; spinning = false; px = e.clientX; py = e.clientY;
+      vy = 0; vx = 0;
+      cv.setPointerCapture && cv.setPointerCapture(e.pointerId);
+    }
+    function pointerMove(e){
+      if(!drag) return;
+      var dx = e.clientX - px, dy = e.clientY - py;
+      px = e.clientX; py = e.clientY;
+      if(Math.abs(dx) + Math.abs(dy) > 2) moved = true;
+      yaw += dx*0.0092; vy = dx*0.0092;
+      pitch = Math.max(-0.42, Math.min(0.42, pitch + dy*0.005)); vx = dy*0.005;
+      e.preventDefault();
+    }
+    function pointerUp(){ drag = false; }
+    cv.addEventListener('pointerdown', pointerDown);
+    cv.addEventListener('pointermove', pointerMove);
+    cv.addEventListener('pointerup', pointerUp);
+    cv.addEventListener('pointercancel', pointerUp);
+    cv.addEventListener('pointerleave', pointerUp);
+
+    function frame(now){
+      if(dead) return;
+      raf = requestAnimationFrame(frame);
+      if(!W){ fit(); if(!W) return; }
+
+      if(mixT < 1){
+        mixT = Math.min(1, (now - mixT0)/mixDur);
+        blend();
+      }
+      var grow = Math.min(1, (now - born)/1200);
+      var ge = 1 - Math.pow(1 - grow, 3);
+
+      if(spinning){
+        var st = Math.min(1, (now - spinT0)/640);
+        yaw = spinA + (spinB - spinA)*(1 - Math.pow(1 - st, 3));
+        if(st >= 1) spinning = false;
+      } else if(!drag){
+        yaw += vy; pitch = Math.max(-0.42, Math.min(0.42, pitch + vx));
+        vy *= 0.94; vx *= 0.9;
+        yaw += 0.0022 + 0.02*(1-ge);
+      }
+
+      var cyw = Math.cos(yaw), syw = Math.sin(yaw);
+      var cpt = Math.cos(pitch), spt = Math.sin(pitch);
+      var cx = W*dpr/2, cy = H*dpr*0.52;
+      var sc = Math.min(W*dpr*0.37, H*dpr*0.405);
+      var dd = 3.6;
+
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.clearRect(0,0,cv.width,cv.height);
+
+      for(var q = 0; q < LEVELS; q++){ bucketX[q].length = 0; bucketY[q].length = 0; }
+      var rimX = [], rimY = [], backX = [], backY = [];
+
+      for(var i = 0, j = 0; i < HD_N; i++, j += 3){
+        var g2 = ge + (1-ge)*scatter[i];
+        var x = P[j]*g2, y = P[j+1]*g2, z = P[j+2]*g2;
+        var x1 = x*cyw + z*syw, z1 = -x*syw + z*cyw;
+        var y1 = y*cpt - z1*spt, z2 = y*spt + z1*cpt;
+        var nx1 = N[j]*cyw + N[j+2]*syw, nz1 = -N[j]*syw + N[j+2]*cyw;
+        var nz2 = N[j+1]*spt + nz1*cpt;
+        var k = dd/(dd - z2);
+        var sx = cx + x1*sc*k, sy = cy - y1*sc*k;
+        if(nz2 < -0.02){ backX.push(sx); backY.push(sy); }
+        else if(nz2 < 0.26){ rimX.push(sx); rimY.push(sy); }
+        else {
+          var dep = (z2 + 0.9)/1.8; if(dep < 0) dep = 0; if(dep > 1) dep = 1;
+          var lv = Math.floor(dep*dep*LEVELS); if(lv > LEVELS-1) lv = LEVELS-1;
+          bucketX[lv].push(sx); bucketY[lv].push(sy);
+        }
+      }
+
+      var ps = Math.max(1, 1.45*dpr);
+      ctx.fillStyle = '#8C8F89';
+      ctx.globalAlpha = 0.10*ge;
+      for(var t = 0; t < backX.length; t++) ctx.fillRect(backX[t], backY[t], ps, ps);
+      ctx.fillStyle = '#E8E8E2';
+      for(var lv2 = 0; lv2 < LEVELS; lv2++){
+        var arr = bucketX[lv2]; if(!arr.length) continue;
+        ctx.globalAlpha = (0.13 + 0.62*(lv2/(LEVELS-1)))*ge;
+        var ay = bucketY[lv2];
+        for(var m = 0; m < arr.length; m++) ctx.fillRect(arr[m], ay[m], ps, ps);
+      }
+      ctx.fillStyle = '#CD432C';
+      ctx.globalAlpha = 0.92*ge;
+      var rs = Math.max(1, 1.7*dpr);
+      for(var r = 0; r < rimX.length; r++) ctx.fillRect(rimX[r], rimY[r], rs, rs);
+
+      // 이목구비
+      var A = cache[from].F, B = cache[cur].F;
+      var me = mixT >= 1 ? 1 : 1 - Math.pow(1 - mixT, 3);
+      ctx.lineWidth = Math.max(1, 1.05*dpr);
+      ctx.strokeStyle = '#F2F2EC';
+      for(var c = 0; c < A.length; c++){
+        var ca = A[c], cb = B[c];
+        ctx.beginPath();
+        var open = false;
+        for(var v = 0; v < ca.length; v++){
+          var fx = (ca[v][0] + (cb[v][0]-ca[v][0])*me)*ge;
+          var fy = (ca[v][1] + (cb[v][1]-ca[v][1])*me)*ge;
+          var fz = (ca[v][2] + (cb[v][2]-ca[v][2])*me)*ge;
+          var nl = Math.sqrt(fx*fx + fy*fy + fz*fz) || 1;
+          var rx = fx*cyw + fz*syw, rz = -fx*syw + fz*cyw;
+          var ry = fy*cpt - rz*spt, rz2 = fy*spt + rz*cpt;
+          var facing = (fy/nl)*spt + ((-fx/nl)*syw + (fz/nl)*cyw)*cpt;
+          var kk = dd/(dd - rz2);
+          var qx = cx + rx*sc*kk, qy = cy - ry*sc*kk;
+          if(facing > 0.06){
+            if(!open){ ctx.moveTo(qx, qy); open = true; } else ctx.lineTo(qx, qy);
+          } else open = false;
+        }
+        ctx.globalAlpha = 0.75*ge;
+        ctx.stroke();
+      }
+
+      // 지시선 — 앞을 보고 있으면 판독값, 등을 보이면 남은 인상
+      var era = IMG_ERAS[cur];
+      var frontAmt = cyw*cpt;                       // +면 앞면, -면 뒷면
+      var showBack = frontAmt < 0;
+      var sideNow = showBack ? 'back' : 'front';
+      if(sideNow !== lastSide){
+        lastSide = sideNow;
+        if(opts.onSide) opts.onSide(sideNow);
+      }
+      var annos = showBack ? IMG_BACK_ANNO : IMG_ANNO;
+      var turn = Math.min(1, Math.abs(frontAmt)/0.30);   // 옆모습에서는 지시선을 숨긴다
+
+      ctx.font = '600 ' + (9.5*dpr).toFixed(0) + 'px "JetBrains Mono", Pretendard, monospace';
+      ctx.textBaseline = 'middle';
+      annos.forEach(function(an){
+        var p = headPt(an.th, an.u, IMG_ERAS[cur].M);
+        var nl = Math.sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[2]) || 1;
+        var ax = p[0]*ge, ay2 = p[1]*ge, az = p[2]*ge;
+        var rx = ax*cyw + az*syw, rz = -ax*syw + az*cyw;
+        var ry = ay2*cpt - rz*spt, rz2 = ay2*spt + rz*cpt;
+        var facing = (p[1]/nl)*spt + ((-p[0]/nl)*syw + (p[2]/nl)*cyw)*cpt;
+        if(facing < 0.12) return;
+        var al = Math.min(1, (facing - 0.12)*3.4)*ge*turn;
+        if(al <= 0.02) return;
+        var kk = dd/(dd - rz2);
+        var qx = cx + rx*sc*kk, qy = cy - ry*sc*kk;
+        var tx = an.side < 0 ? 14*dpr : cv.width - 14*dpr;
+        var ty = cv.height*an.slot;
+        var accent = showBack ? '#8C8F89' : '#CD432C';
+        ctx.globalAlpha = al*0.55;
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = Math.max(1, dpr);
+        if(showBack){ ctx.setLineDash([3*dpr, 3*dpr]); }
+        ctx.beginPath();
+        ctx.moveTo(qx, qy);
+        ctx.lineTo(tx + (an.side < 0 ? 30*dpr : -30*dpr), ty);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = al;
+        ctx.fillStyle = accent;
+        ctx.fillRect(qx - 1.5*dpr, qy - 1.5*dpr, 3*dpr, 3*dpr);
+        ctx.textAlign = an.side < 0 ? 'left' : 'right';
+        ctx.fillStyle = '#5A5D57';
+        ctx.fillText(an.part, tx, ty - 8*dpr);
+        ctx.fillStyle = '#E8E8E2';
+        ctx.fillText(showBack
+          ? era.back[an.bi]
+          : READ_KEYS[an.ri].k + ' ' + era.read[an.ri], tx, ty + 6*dpr);
+      });
+      ctx.globalAlpha = 1;
+    }
+    raf = requestAnimationFrame(frame);
+
+    return {
+      setEra: setEra,
+      spinTo: function(target){    // 0 = 정면, 1 = 뒷면
+        var TAU = Math.PI*2;
+        var want = target ? Math.PI : 0;
+        var d = want - (((yaw % TAU) + TAU) % TAU);
+        if(d > Math.PI) d -= TAU;
+        if(d <= -Math.PI) d += TAU;
+        spinA = yaw; spinB = yaw + d;
+        spinT0 = performance.now(); spinning = true; vy = 0;
+      },
+      dispose: function(){
+        dead = true;
+        if(raf) cancelAnimationFrame(raf);
+        window.removeEventListener('resize', onResize);
+      }
+    };
+  }
+
+  /* ---------- 스테이지 ---------- */
+
+  // 라이프 타임라인 좌표 — 나이 0~40을 가로축으로 편다
+  var LG_W = 760, LG_H = 158, LG_AXIS = 76, LG_L = 22, LG_R = 12, LG_MAXAGE = 40;
+  function lgX(age){ return LG_L + (age/LG_MAXAGE)*(LG_W - LG_L - LG_R); }
+  function lgPct(age){ return (lgX(age)/LG_W*100).toFixed(3) + '%'; }
+  function lifeScore(e){ return e.pv - e.nv; }
+  function lifeY(score){ return LG_AXIS - (score * 0.72); }
+  function denseLifePoints(){
+    var out=[];
+    for(var age=4; age<=39; age++){
+      var left=IMG_ERAS[0], right=IMG_ERAS[IMG_ERAS.length-1];
+      for(var i=0;i<IMG_ERAS.length-1;i++){
+        if(age>=IMG_ERAS[i].age && age<=IMG_ERAS[i+1].age){ left=IMG_ERAS[i]; right=IMG_ERAS[i+1]; break; }
+      }
+      var span = Math.max(1, right.age-left.age);
+      var t = Math.max(0, Math.min(1,(age-left.age)/span));
+      var score = lifeScore(left) + (lifeScore(right)-lifeScore(left))*t;
+      out.push([lgX(age), lifeY(score)]);
+    }
+    return out;
+  }
+  function smoothPath(pts){
+    if(!pts.length) return '';
+    var d='M'+pts[0][0].toFixed(1)+','+pts[0][1].toFixed(1);
+    for(var i=0;i<pts.length-1;i++){
+      var p0=pts[i-1]||pts[i], p1=pts[i], p2=pts[i+1], p3=pts[i+2]||pts[i+1];
+      var c1x=p1[0]+(p2[0]-p0[0])/6, c1y=p1[1]+(p2[1]-p0[1])/6;
+      var c2x=p2[0]-(p3[0]-p1[0])/6, c2y=p2[1]-(p3[1]-p1[1])/6;
+      d+='C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+p2[0].toFixed(1)+','+p2[1].toFixed(1);
+    }
+    return d;
+  }
+  function lifeGraphSvg(){
+    var dense=denseLifePoints(), line=smoothPath(dense);
+    var dots=IMG_ERAS.map(function(e,i){
+      var score=lifeScore(e);
+      return '<circle class="lg-composite-dot" data-d="'+i+'" cx="'+lgX(e.age).toFixed(1)+'" cy="'+lifeY(score).toFixed(1)+'" r="3.2"/>';
+    }).join('');
+    var denseDots=denseLifePoints().map(function(pt){
+      return '<circle cx="'+pt[0].toFixed(1)+'" cy="'+pt[1].toFixed(1)+'" r="1.25" fill="#8C8F89" opacity=".34"/>';
+    }).join('');
+    var grid='', xlabels='';
+    for(var age=0; age<=40; age++){
+      var major = age%5===0;
+      var medium = age%1===0;
+      grid+='<line class="lg-grid '+(major?'major':'')+'" x1="'+lgX(age).toFixed(1)+'" y1="8" x2="'+lgX(age).toFixed(1)+'" y2="'+(LG_H-34)+'"/>';
+      if(major || age % 5 === 0){
+        xlabels+='<text x="'+lgX(age).toFixed(1)+'" y="'+(LG_H-20)+'" text-anchor="middle" fill="#6D706B" font-size="'+(major?'8':'6.5')+'" font-family="var(--eng)" font-weight="'+(major?'700':'500')+'">'+age+'Y</text>';
+      }
+    }
+    for(var score=-80; score<=80; score+=20){
+      grid+='<line class="lg-grid '+(score===0?'major':'')+'" x1="'+LG_L+'" y1="'+lifeY(score).toFixed(1)+'" x2="'+(LG_W-LG_R)+'" y2="'+lifeY(score).toFixed(1)+'"/>';
+    }
+    var stems=IMG_ERAS.map(function(e){
+      return '<line class="lg-stem" data-stem="'+e.age+'" x1="'+lgX(e.age).toFixed(1)+'" y1="'+lifeY(lifeScore(e))+'" x2="'+lgX(e.age).toFixed(1)+'" y2="'+(LG_H-34)+'"/>';
+    }).join('');
+    var x0=LG_L, xN=LG_W-LG_R;
+    var predX=lgX(IMG_ERAS[5].age);
+    var area=line+'L'+xN+','+LG_AXIS+'L'+x0+','+LG_AXIS+'Z';
+    return '<svg class="lg-svg" viewBox="0 0 '+LG_W+' '+LG_H+'" role="img" aria-label="나이에 따른 종합 인상 추이">'+
+      '<defs><linearGradient id="lgMix" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#E8E8E2" stop-opacity=".22"/><stop offset="100%" stop-color="#E8E8E2" stop-opacity="0"/></linearGradient>'+
+      '<pattern id="lgPred" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#2A2C29" stroke-width="1"/></pattern></defs>'+
+      grid+'<rect x="'+predX.toFixed(1)+'" y="0" width="'+(LG_W-predX).toFixed(1)+'" height="'+LG_H+'" fill="url(#lgPred)" opacity=".5"/>'+
+      '<line class="lg-pred" x1="'+predX.toFixed(1)+'" y1="0" x2="'+predX.toFixed(1)+'" y2="'+LG_H+'"/>'+
+      '<path d="'+area+'" fill="url(#lgMix)" opacity=".5"/>'+
+      '<line class="lg-zero" x1="'+LG_L+'" y1="'+LG_AXIS+'" x2="'+(LG_W-LG_R)+'" y2="'+LG_AXIS+'"/>'+
+      stems+denseDots+'<path class="lg-composite" d="'+line+'"/>'+dots+xlabels+
+      '<text x="'+LG_L+'" y="18" fill="#8c8f89" font-size="8" font-family="var(--eng)" font-weight="700" letter-spacing=".18em">POSITIVE ↑</text>'+
+      '<text x="'+LG_L+'" y="'+(LG_H-8)+'" fill="#8c8f89" font-size="8" font-family="var(--eng)" font-weight="700" letter-spacing=".18em">NEGATIVE ↓</text>'+
+      '</svg>';
+  }
+
+  function stageImageScan(){
+    var tk = stageEnter(stageDecidedness,5);
+    var sel = 4;
+
+    var readHtml = READ_KEYS.map(function(r, i){
+      return '<div class="rdr">' +
+        '<div class="rdr-k"><b>' + r.k + '</b><em>' + r.e + '</em></div>' +
+        '<div class="rdr-mid"><div class="rdr-d">' + r.d + '</div>' +
+          '<div class="rdr-b"><i data-r="' + i + '" style="width:0%"></i></div></div>' +
+        '<div class="rdr-v" data-rv="' + i + '">0</div>' +
+      '</div>';
+    }).join('');
+
+    var nodesHtml = IMG_ERAS.map(function(e, i){
+      return '<button class="lg-node' + (i === sel ? ' on' : '') + (e.pred ? ' pred' : '') +
+        '" data-e="' + i + '" style="left:' + lgPct(e.age) + ';" ' +
+        'aria-label="' + e.ym + ' ' + e.age + '세 ' + e.name + '">' +
+        '<i class="lg-stick"></i>' +
+        '<span class="lg-lab"><u>' + e.ym + '</u><b>' + e.age + '세</b><s>' + e.name + '</s></span>' +
+      '</button>';
+    }).join('');
+
+    setContent(
+      '<div class="imx">' +
+        '<div class="vfx-head">' +
+          '<span class="vfx-kicker">IMAGE PROFILE</span>' +
+          '<span class="vfx-rule"></span>' +
+          '<span class="vfx-kicker">ARCHIVE · 06 구간</span>' +
+        '</div>' +
+
+        '<div class="imx-sticky">' +
+          '<div class="imx-focus">' +
+            '<div class="imx-main">' +
+              '<div class="imx-stage">' +
+                '<canvas id="imxCv"></canvas>' +
+                '<i class="imx-c tl"></i><i class="imx-c tr"></i><i class="imx-c bl"></i><i class="imx-c br"></i>' +
+                '<div class="imx-badge eng" id="imxBadge"></div>' +
+              '</div>' +
+              '<div class="imx-hint eng">DRAG TO SPIN · 끌어서 돌리면 뒷모습이 나옵니다</div>' +
+              '<div class="imx-tr-label" style="margin:10px 0 5px;">LIFE TIMELINE · 종합 인상 · 년월 · 나이</div>' +
+              '<div class="lifegraph" id="lifeGraph">' +
+                '<span class="lg-predlab">종합 인상 = 긍정 − 부정</span>' +
+                lifeGraphSvg() +
+                nodesHtml +
+              '</div>' +
+            '</div>' +
+            '<div class="imx-detail">' +
+              '<div class="imx-era">' +
+                '<div class="imx-era-top"><div class="imx-era-name" id="imxName"></div>' +
+                '<div class="imx-era-dec"><em>DEC</em><span id="imxDec"></span></div></div>' +
+                '<div class="imx-era-line" id="imxLine"></div>' +
+              '</div>' +
+              '<div class="imx-side"><span class="sd-t" id="imxSide"></span>' +
+                '<button class="imx-flip" id="imxFlip" type="button">뒤에서 보기</button></div>' +
+              '<div class="imx-foot" id="imxFoot"></div>' +
+              '<div class="imx-tr-label" style="margin-top:16px;">TRAITS · 종합</div>' +
+              '<div class="trait-summary" id="imxTraits"></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
+
+      '</div>' +
+      '<button class="ghost-btn" id="bImg" style="margin-bottom:20px;">계속</button>'
+    );
+
+    var badge  = document.getElementById('imxBadge');
+    var sideEl = document.getElementById('imxSide');
+    var footEl = document.getElementById('imxFoot');
+    var flipEl = document.getElementById('imxFlip');
+    var nameEl = document.getElementById('imxName');
+    var decEl  = document.getElementById('imxDec');
+    var lineEl = document.getElementById('imxLine');
+    var traitsEl = document.getElementById('imxTraits');
+
+    var facing = 'front';
+    function paintSide(){
+      var e = IMG_ERAS[sel];
+      var wrap = sideEl.parentNode;
+      if(facing === 'back'){
+        sideEl.innerHTML = '<b>뒷모습</b> 타인에게 남은 인상<span>' + e.back.join(' · ') + '</span>';
+        wrap.classList.add('back');
+        flipEl.textContent = '앞에서 보기';
+      } else {
+        sideEl.innerHTML = '<b>정면</b> 타인이 읽는 판독값<span>' +
+          READ_KEYS.map(function(r, i){ return r.k + ' ' + e.read[i]; }).join(' · ') + '</span>';
+        wrap.classList.remove('back');
+        flipEl.textContent = '뒤에서 보기';
+      }
+    }
+
+    var head = mountHead(document.getElementById('imxCv'), sel, {
+      onSide: function(sd){ facing = sd; paintSide(); }
+    });
+    OB_DISPOSE.push(head.dispose);
+
+    flipEl.onclick = function(){ head.spinTo(facing === 'front' ? 1 : 0); };
+
+    var TRAIT_DEFS = [
+      {code:'WARMTH', label:'온기', left:'따뜻한', right:'차가운'},
+      {code:'TRUST', label:'신뢰감', left:'믿음직한', right:'수상한'},
+      {code:'APPROACH', label:'친근감', left:'다가가기 쉬운', right:'다가가기 어려운'},
+      {code:'STRENGTH', label:'강인함', left:'단단한', right:'여린'},
+      {code:'VITALITY', label:'활력', left:'밝은', right:'어두운'},
+      {code:'DELICACY', label:'섬세함', left:'부드러운', right:'거친'},
+      {code:'STABILITY', label:'안정감', left:'차분한', right:'불안한'}
+    ];
+    function renderTraits(e){
+      return TRAIT_DEFS.map(function(t, i){
+        var v = Math.max(0, Math.min(100, Number(e.traits[i] || 50)));
+        var leftMag = Math.max(0, 50-v) * 2;
+        var rightMag = Math.max(0, v-50) * 2;
+        var leftDot = v <= 50 ? (v*2) : 100;
+        var rightDot = v >= 50 ? ((v-50)*2) : 0;
+        return '<div class="trait-summary-row">' +
+          '<span class="trait-end left">' + t.left + '</span>' +
+          '<div class="trait-track"><i class="trait-fill" style="right:0;width:' + leftMag + '%;"></i>' +
+          '<i class="trait-dot" style="left:' + leftDot + '%;"></i></div>' +
+          '<b>' + t.label + '</b>' +
+          '<em>' + v + '</em>' +
+          '<div class="trait-track"><i class="trait-fill" style="left:0;width:' + rightMag + '%;"></i>' +
+          '<i class="trait-dot" style="left:' + rightDot + '%;"></i></div>' +
+          '<span class="trait-end right">' + t.right + '</span>' +
+          '</div>';
+      }).join('');
+    }
+
+    function paint(i){
+      var e = IMG_ERAS[i];
+      badge.innerHTML = e.code + ' · <b>' + e.name + '</b>' + (e.pred ? ' · 예측' : '');
+      footEl.innerHTML = '<span class="ft-ym">' + e.ym + '</span>' +
+        '<span class="ft-age">' + e.age + '세</span>' +
+        '<span class="ft-nm">' + e.name + (e.pred ? ' · 예측' : '') + '</span>' +
+        '<span class="ft-dec"><em>DEC</em>' + e.dec.toFixed(2) + '</span>';
+      nameEl.textContent = e.name;
+      decEl.textContent = e.dec.toFixed(2);
+      lineEl.textContent = e.line;
+      traitsEl.innerHTML = renderTraits(e);
+      e.read.forEach(function(v, ri){
+        var bar = document.querySelector('.rdr-b i[data-r="' + ri + '"]');
+        if(bar) bar.style.width = v + '%';
+        var num = document.querySelector('.rdr-v[data-rv="' + ri + '"]');
+        if(num) num.textContent = v;
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('.lg-node'), function(n, j){
+        n.classList.toggle('on', j === i);
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('.lg-dot'), function(c){
+        c.classList.toggle('on', parseInt(c.getAttribute('data-d'), 10) === i);
+      });
+      head.setEra(i);
+      paintSide();
+    }
+    paint(sel);
+
+    Array.prototype.forEach.call(document.querySelectorAll('.lg-node'), function(n){
+      n.addEventListener('click', function(){
+        sel = parseInt(n.getAttribute('data-e'), 10);
+        paint(sel);
+      });
+    });
+
+    document.getElementById('bImg').onclick = stageProfile;
+  }
+
+  var PROFILE_FIELDS = [
+    { key:'job', label:'직업', grouped:true, groups:[
+      { label:'테크 · 제품 · 데이터', en:'TECH / PRODUCT / DATA', options:[
+        { v:'designer', t:'디자이너' }, { v:'developer', t:'개발자' }, { v:'engineer', t:'엔지니어' },
+        { v:'pm', t:'기획 · PM' }, { v:'data', t:'데이터 · AI' }, { v:'researcher', t:'연구원' },
+        { v:'qa', t:'QA · 테스트' }, { v:'security', t:'보안 · 인프라' }
+      ]},
+      { label:'경영 · 사무 · 금융', en:'BUSINESS / OFFICE / FINANCE', options:[
+        { v:'marketer', t:'마케터' }, { v:'finance', t:'금융 · 투자' }, { v:'accounting', t:'회계 · 세무' },
+        { v:'legal', t:'법률 · 변호사' }, { v:'hr', t:'인사 · HR' }, { v:'consultant', t:'컨설턴트' },
+        { v:'sales', t:'영업 · 세일즈' }, { v:'admin', t:'행정 · 사무' }
+      ]},
+      { label:'창작 · 미디어 · 패션', en:'CREATIVE / MEDIA / FASHION', options:[
+        { v:'writer', t:'작가 · 에디터' }, { v:'artist', t:'아티스트' }, { v:'photo', t:'사진 · 영상' },
+        { v:'musician', t:'음악 · 공연' }, { v:'creator', t:'크리에이터' }, { v:'journalist', t:'기자' },
+        { v:'stylist', t:'패션 · 스타일리스트' }, { v:'director', t:'디렉터 · 연출' }
+      ]},
+      { label:'교육 · 의료 · 공공', en:'EDUCATION / HEALTH / PUBLIC', options:[
+        { v:'teacher', t:'교사 · 강사' }, { v:'professor', t:'교수 · 연구교수' }, { v:'healthcare', t:'의료 · 의사' },
+        { v:'nurse', t:'간호 · 보건' }, { v:'care', t:'돌봄 · 사회복지' }, { v:'coach', t:'코치 · 트레이너' },
+        { v:'public', t:'공무원 · 공공기관' }, { v:'scientist', t:'과학 · 연구' }
+      ]},
+      { label:'서비스 · 리테일 · 관광', en:'SERVICE / RETAIL / TRAVEL', options:[
+        { v:'hospitality', t:'호텔 · 관광' }, { v:'food', t:'외식 · 주방' }, { v:'retail', t:'판매 · 매장' },
+        { v:'beauty', t:'뷰티 · 미용' }, { v:'customer', t:'고객상담' }, { v:'event', t:'행사 · 운영' },
+        { v:'realestate', t:'부동산' }, { v:'broker', t:'중개 · 에이전트' }
+      ]},
+      { label:'현장 · 제조 · 운송', en:'FIELD / MANUFACTURING / TRANSPORT', options:[
+        { v:'driver', t:'운전 · 배송' }, { v:'construction', t:'건설 · 현장' }, { v:'manufacturing', t:'제조 · 생산' },
+        { v:'technician', t:'설비 · 기술' }, { v:'agriculture', t:'농림 · 수산' }, { v:'mechanic', t:'정비 · 수리' },
+        { v:'logistics', t:'물류 · 창고' }, { v:'operator', t:'기계 · 장비' }
+      ]},
+      { label:'사업 · 프리랜스 · 기타', en:'BUSINESS / FREELANCE / OTHER', options:[
+        { v:'owner', t:'자영업 · 점주' }, { v:'founder', t:'창업 · 경영' }, { v:'freelance', t:'프리랜서' },
+        { v:'agent', t:'에이전트 · 매니저' }, { v:'student', t:'학생' }, { v:'jobseeker', t:'구직 중' },
+        { v:'homemaker', t:'가사 · 육아' }, { v:'retired', t:'은퇴 · 휴직' }, { v:'other', t:'기타' }
+      ]}
+    ]},
+    { key:'age', label:'연령', options:[
+      { v:'20', t:'20대' }, { v:'30', t:'30대' }, { v:'40', t:'40대' }, { v:'50', t:'50대 이상' }
+    ]},
+    { key:'sex', label:'성별', options:[
+      { v:'f', t:'여성' }, { v:'m', t:'남성' }, { v:'n', t:'밝히지 않음' }
+    ]}
+  ];
+
+  function stageProfile(){
+    stageEnter(stageImageScan,6);
+    var html =
+      '<div class="voice-line">당신에 대해 알려주세요.</div>' +
+      '<div class="profile-form">';
+    PROFILE_FIELDS.forEach(function(f){
+      html += '<div class="field"><div class="field-label">'+f.label+'</div>';
+      if(f.grouped){
+        html += '<div class="job-groups">';
+        f.groups.forEach(function(g,gi){
+          html += '<div class="job-group" data-group="'+gi+'"><button type="button" class="job-group-toggle"><span class="jg-main"><b>'+g.label+'</b><em>'+g.en+'</em></span><i>＋</i></button><div class="chips job-chips" data-key="'+f.key+'">';
+          g.options.forEach(function(o){
+            html += '<button class="chip" data-key="'+f.key+'" data-val="'+o.v+'">'+o.t+'</button>';
+          });
+          html += '</div></div>';
+        });
+        html += '</div>';
+      } else {
+        html += '<div class="chips" data-key="'+f.key+'">';
+        f.options.forEach(function(o){
+          html += '<button class="chip" data-key="'+f.key+'" data-val="'+o.v+'">'+o.t+'</button>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div><button class="ghost-btn" id="bProfile" disabled>다음</button>';
+    setContent(html);
+
+    S.profile = S.profile || { job:null, age:null, sex:null };
+    var btn = document.getElementById('bProfile');
+    // 뒤로 왔을 때 고른 값이 남아 있게 한다
+    Array.prototype.forEach.call(document.querySelectorAll('.chip'), function(c){
+      if(S.profile[c.getAttribute('data-key')] === c.getAttribute('data-val')) c.classList.add('on');
+    });
+    btn.disabled = !(S.profile.job && S.profile.age && S.profile.sex);
+    Array.prototype.forEach.call(document.querySelectorAll('.job-group-toggle'), function(toggle){
+      toggle.addEventListener('click', function(){
+        var group = toggle.parentElement;
+        var wasOpen = group.classList.contains('open');
+        Array.prototype.forEach.call(document.querySelectorAll('.job-group'), function(g){ g.classList.remove('open'); });
+        if(!wasOpen) group.classList.add('open');
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.chip'), function(chip){
+      chip.addEventListener('click', function(){
+        var key = chip.getAttribute('data-key');
+        S.profile[key] = chip.getAttribute('data-val');
+        var parentGroup = chip.closest('.job-group');
+        if(parentGroup) parentGroup.classList.add('open');
+        Array.prototype.forEach.call(
+          document.querySelectorAll('.chip[data-key="'+key+'"]'),
+          function(c){ c.classList.toggle('on', c === chip); }
+        );
+        btn.disabled = !(S.profile.job && S.profile.age && S.profile.sex);
+      });
+    });
+    btn.onclick = stageCohort;
+  }
+
+  var JOB_META = {
+    designer:{ label:'디자이너', mul:1.04, save:.42 }, developer:{label:'개발자',mul:1.02,save:.43}, pm:{label:'기획 · PM',mul:1.02,save:.43},
+    marketer:{label:'마케터',mul:1.00,save:.41}, finance:{label:'금융 · 투자',mul:1.05,save:.45}, legal:{label:'법률 · 회계',mul:1.04,save:.45},
+    researcher:{label:'연구원',mul:.98,save:.43}, consultant:{label:'컨설턴트',mul:1.08,save:.44}, writer:{label:'작가 · 에디터',mul:.93,save:.39},
+    artist:{label:'아티스트',mul:.90,save:.36}, photo:{label:'사진 · 영상',mul:.99,save:.40}, musician:{label:'음악 · 공연',mul:1.02,save:.38},
+    creator:{label:'크리에이터',mul:1.01,save:.40}, journalist:{label:'기자',mul:1.03,save:.42}, hospitality:{label:'호텔 · 관광',mul:1.24,save:.44},
+    food:{label:'외식 · 주방',mul:1.30,save:.45}, retail:{label:'판매 · 매장',mul:1.18,save:.43}, beauty:{label:'뷰티 · 미용',mul:1.10,save:.40},
+    customer:{label:'고객상담',mul:1.12,save:.41}, event:{label:'행사 · 운영',mul:1.16,save:.42}, teacher:{label:'교사 · 강사',mul:.97,save:.45},
+    healthcare:{label:'의료 · 보건',mul:1.09,save:.46}, care:{label:'돌봄 · 사회복지',mul:1.08,save:.44}, coach:{label:'코치 · 트레이너',mul:1.02,save:.40},
+    driver:{label:'운전 · 배송',mul:1.16,save:.44}, construction:{label:'건설 · 현장',mul:1.24,save:.43}, manufacturing:{label:'제조 · 생산',mul:1.12,save:.42},
+    technician:{label:'설비 · 기술',mul:1.10,save:.43}, agriculture:{label:'농림 · 수산',mul:1.08,save:.39}, owner:{label:'자영업 · 점주',mul:1.22,save:.40},
+    founder:{label:'창업 · 경영',mul:1.28,save:.39}, freelance:{label:'프리랜서',mul:1.00,save:.36}, sales:{label:'영업 · 세일즈',mul:1.20,save:.42},
+    student:{label:'학생',mul:.74,save:.30}, jobseeker:{label:'구직 중',mul:.62,save:.28}, homemaker:{label:'가사 · 육아',mul:.68,save:.34}, retired:{label:'은퇴 · 휴직',mul:.58,save:.32}, other:{label:'기타',mul:.88,save:.36}
+  };
+
+  function cohortNumbers(p){
+    var meta = JOB_META[p.job] || JOB_META.other;
+    var ageMul  = { '20':1.12, '30':1.05, '40':0.98, '50':0.90 }[p.age];
+    var annual  = 216 * meta.mul * ageMul;
+    var saved   = annual * meta.save;
+    return { annual:annual, saved:saved, fee:saved*0.10, rate:Math.round(meta.save*100) };
+  }
+  function cohortLabel(p){
+    var meta = JOB_META[p.job] || JOB_META.other;
+    var age = { '20':'20대', '30':'30대', '40':'40대', '50':'50대 이상' }[p.age];
+    var sex = { f:'여성', m:'남성', n:'' }[p.sex];
+    return age + ' ' + (sex ? sex + ' ' : '') + meta.label;
+  }
+
+  function stageCohort(){
+    stageEnter(stageProfile,7);
+    var n = cohortNumbers(S.profile);
+    setContent(
+      '<div class="voice-line dim" style="font-size:12.5px;">' + escapeHtml(cohortLabel(S.profile)) + ' · 동일 조건 사용자 평균</div>' +
+      '<div class="invoice">' +
+        '<div class="invoice-row"><span>연 평균 관측세</span><span>' + manwon(n.annual) + '</span></div>' +
+        '<div class="invoice-row"><span>최적화로 아낀 금액</span><span>' + manwon(n.saved) + ' (' + n.rate + '%)</span></div>' +
+        '<div class="invoice-row" style="border-bottom:none;"><span>수수료 (절약분의 10%)</span><span>' + manwon(n.fee) + '</span></div>' +
+      '</div>' +
+      '<div class="micro">이 기기로 절세한 금액의 10%가 수수료로 자동 청구됩니다.</div>' +
+      '<button class="ghost-btn" id="bFinish">다음</button>'
+    );
+    document.getElementById('bFinish').onclick = stageBudget;
+  }
+
+  /* ---- 1/3 예산 ---- */
+  var BD_MIN = 1000, BD_MAX = 15000, BD_STEP = 500, BD_DEFAULT = 6000;
+
+  function stageBudget(){
+    stageEnter(stageCohort,8);
+    var last = S.budgetDaily || BD_DEFAULT;
+    if(last < BD_MIN) last = BD_MIN;
+    if(last > BD_MAX) last = BD_MAX;
+
+    setContent(
+      '<div class="voice-line">하루에 얼마까지 보시겠습니까?</div>' +
+      '<div class="voice-line dim" style="font-size:12.5px;">예산을 넘기면 물체가 자동으로 블러 처리 됩니다. 남은 응시량은 항상 표시됩니다.</div>' +
+      '<div class="bd-wrap">' +
+        '<div class="bd-amount" id="bdAmt">—</div>' +
+        '<div class="bd-unit" id="bdUnit">1일 상한</div>' +
+        '<input class="bd-range" id="bdRange" type="range" ' +
+          'min="'+BD_MIN+'" max="'+BD_MAX+'" step="'+BD_STEP+'" value="'+last+'" ' +
+          'aria-label="하루 응시 예산" />' +
+        '<div class="bd-scale"><span>'+won(BD_MIN)+'</span><span>'+won(BD_MAX)+'</span></div>' +
+        '<button class="bd-nolimit" id="bdNo" type="button">상한을 설정하지 않겠습니다</button>' +
+      '</div>' +
+      '<div class="micro" id="bdNote"></div>' +
+      '<button class="ghost-btn" id="bBudget">계속</button>'
+    );
+
+    var range = document.getElementById('bdRange');
+    var amt   = document.getElementById('bdAmt');
+    var unit  = document.getElementById('bdUnit');
+    var note  = document.getElementById('bdNote');
+    var noBtn = document.getElementById('bdNo');
+    var noLimit = (S.budgetDaily === 0);
+
+    function paint(){
+      if(noLimit){
+        S.budgetDaily = 0;
+        amt.textContent = '상한 없음';
+        amt.classList.add('off');
+        unit.textContent = '제한 없이 과금';
+        range.disabled = true;
+        noBtn.classList.add('on');
+        note.innerHTML = '동일 조건 평균 사용량은 하루 ' + won(FULL_DAILY) + '입니다.';
+      } else {
+        S.budgetDaily = parseInt(range.value, 10);
+        last = S.budgetDaily;
+        amt.textContent = won(S.budgetDaily);
+        amt.classList.remove('off');
+        unit.textContent = '1일 상한';
+        range.disabled = false;
+        noBtn.classList.remove('on');
+        note.innerHTML = '동일 조건 평균 사용량은 하루 ' + won(FULL_DAILY) + '입니다.' +
+          (S.budgetDaily < FULL_DAILY
+            ? '<br>이 상한이면 평균보다 먼저 블러가 시작됩니다.'
+            : '');
+      }
+    }
+
+    range.addEventListener('input', function(){ if(!noLimit) paint(); });
+    range.addEventListener('change', function(){ if(!noLimit) paint(); });
+    noBtn.addEventListener('click', function(){
+      noLimit = !noLimit;
+      if(!noLimit) range.value = last;
+      paint();
+    });
+    paint();
+
+    document.getElementById('bBudget').onclick = function(){
+      if(!noLimit) S.budgetDaily = parseInt(range.value, 10);
+      stageViewFilter();
+    };
+  }
+
+  /* ---- 필터 공용 조립 ---- */
+  function pad2(n){ return (n < 10 ? '0' : '') + n; }
+
+  // cut = 시야에서 잘려나간 상태(이름에 줄이 그어진다). on = 스위치가 눌린 상태.
+  function vfxRow(o){
+    var row = document.createElement('div');
+    row.className = 'vfx-row' + (o.on ? ' on' : '') + (o.cut ? ' cut' : '');
+    row.setAttribute('tabindex', '0');
+    row.setAttribute('role', 'switch');
+    row.setAttribute('aria-checked', !!o.on);
+    row.innerHTML =
+      '<div class="vfx-idx">' + pad2(o.i) + '</div>' +
+      '<div class="vfx-body">' +
+        '<div class="vfx-name">' + o.name + '<i></i></div>' +
+        '<div class="vfx-sub"><em>' + o.code + '</em>' + o.desc + '</div>' +
+      '</div>' +
+      '<div class="vfx-num"><b>' + o.figure + '</b><span>' + o.unit + '</span>' +
+        '<div class="vfx-pt">' + o.pt + '</div></div>' +
+      '<div class="vfx-mark"></div>';
+    return row;
+  }
+
+  /* ---- 2/3 시야 필터 (IN) ---- */
+  function stageViewFilter(){
+    stageEnter(stageBudget,9);
+    setContent(
+      '<div class="voice-line">무엇을 보지 않으시겠습니까?</div>' +
+      '<div class="voice-line dim" style="font-size:12.5px;">선택한 항목은 시야에서 제거되고, 그만큼 과금되지 않습니다.</div>' +
+      '<div class="vfx">' +
+        '<div class="vfx-head">' +
+          '<span class="vfx-kicker">VIEW FILTER</span>' +
+          '<span class="vfx-rule"></span>' +
+          '<span class="vfx-kicker">' + pad2(VIEW_LAYERS.length) + ' LAYERS</span>' +
+        '</div>' +
+        '<div class="vfx-strip" id="vfxStrip"></div>' +
+        '<div class="vfx-striplabel"><span>VISION&nbsp; <b id="vfxVis">100%</b></span>' +
+          '<span>FIXED ' + (100 - FULL_VISION) + '&nbsp; ·&nbsp; FILTERABLE ' + FULL_VISION + '</span></div>' +
+        '<div class="vfx-list" id="fltList"></div>' +
+        '<div class="vfx-readout">' +
+          '<div class="vfx-cell"><div class="vfx-rv" id="roTax">-</div>' +
+            '<div class="vfx-rk">DAILY TAX<em>일 예상 관측세</em></div></div>' +
+          '<div class="vfx-cell"><div class="vfx-rv good" id="roSaved">-</div>' +
+            '<div class="vfx-rk">SAVED<em>일 절약</em></div></div>' +
+          '<div class="vfx-cell"><div class="vfx-rv" id="roVision">-</div>' +
+            '<div class="vfx-rk">VISION<em>시야 완성도</em></div></div>' +
+        '</div>' +
+      '</div>' +
+      '<button class="ghost-btn" id="bView">계속</button>'
+    );
+
+    // 시야 100을 눈금으로 펼친다.
+    // 앞의 59칸은 어떤 필터로도 걷어낼 수 없는 고정분이고,
+    // 뒤의 41칸만 레이어에 배정된다. 레이어를 끄면 그 몫의 눈금이 주저앉는다.
+    var strip = document.getElementById('vfxStrip');
+    var fixed = 100 - FULL_VISION;
+    for(var f=0; f<fixed; f++){
+      var bt = document.createElement('i');
+      bt.className = 'base';
+      strip.appendChild(bt);
+    }
+    strip.lastChild.classList.add('edge');
+    VIEW_LAYERS.forEach(function(l){
+      for(var k=0; k<l.vision; k++){
+        var t = document.createElement('i');
+        t.setAttribute('data-k', l.key);
+        t.style.transitionDelay = (k * 26) + 'ms';
+        strip.appendChild(t);
+      }
+    });
+
+    var list = document.getElementById('fltList');
+    VIEW_LAYERS.forEach(function(l, i){
+      var row = vfxRow({
+        i: i + 1, name: l.name, code: l.key.toUpperCase(), desc: l.desc,
+        figure: won(l.cost), unit: '/일', pt: 'VISION −' + pad2(l.vision),
+        on: !!S.blocked[l.key], cut: !!S.blocked[l.key]
+      });
+      function toggle(){
+        S.blocked[l.key] = !S.blocked[l.key];
+        row.classList.toggle('on', !!S.blocked[l.key]);
+        row.classList.toggle('cut', !!S.blocked[l.key]);
+        row.setAttribute('aria-checked', !!S.blocked[l.key]);
+        paint();
+      }
+      row.addEventListener('click', toggle);
+      row.addEventListener('keydown', function(e){ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); toggle(); } });
+      // 행에 손을 얹으면 그 레이어가 스트립의 어디를 차지하는지 밝아진다
+      row.addEventListener('mouseenter', function(){ hl(l.key, true); });
+      row.addEventListener('mouseleave', function(){ hl(l.key, false); });
+      row.addEventListener('focus', function(){ hl(l.key, true); });
+      row.addEventListener('blur', function(){ hl(l.key, false); });
+      list.appendChild(row);
+    });
+
+    function hl(key, on){
+      Array.prototype.forEach.call(strip.children, function(t){
+        if(t.getAttribute('data-k') === key) t.classList.toggle('hl', on && !t.classList.contains('out'));
+      });
+    }
+    strip.addEventListener('mouseleave', function(){
+      Array.prototype.forEach.call(strip.children, function(t){ t.classList.remove('hl'); });
+    });
+
+    function paint(){
+      document.getElementById('roTax').textContent = won(dailyProjTax());
+      document.getElementById('roSaved').textContent = won(dailyProjSaved());
+      var v = document.getElementById('roVision');
+      v.textContent = visionPct() + '%';
+      v.className = 'vfx-rv' + (visionPct() < 70 ? ' warn' : '');
+      document.getElementById('vfxVis').textContent = visionPct() + '%';
+      Array.prototype.forEach.call(strip.children, function(t){
+        var k = t.getAttribute('data-k');
+        if(!k) return;                       // 고정분은 건드리지 않는다
+        var off = !!S.blocked[k];
+        t.classList.toggle('out', off);
+        if(off) t.classList.remove('hl');
+      });
+    }
+    paint();
+    document.getElementById('bView').onclick = stageExposeFilter;
+  }
+
+  /* ---- 3/3 노출 필터 (OUT) ---- */
+  function stageExposeFilter(){
+    stageEnter(stageViewFilter,10);
+    setContent(
+      '<div class="voice-line">당신에게서 무엇을 읽게 하시겠습니까?</div>' +
+      '<div class="voice-line dim" style="font-size:12.5px;">허용한 항목만 타인의 시야에 남습니다. 남기려면 유지비가 듭니다.</div>' +
+      '<div class="vfx">' +
+        '<div class="vfx-head">' +
+          '<span class="vfx-kicker">EXPOSE FILTER</span>' +
+          '<span class="vfx-rule"></span>' +
+          '<span class="vfx-kicker">' + pad2(EXPOSE.length) + ' SIGNALS</span>' +
+        '</div>' +
+        '<div class="vfx-list" id="expList"></div>' +
+        '<div class="vfx-sublabel">EXCEPTION — 필터가 적용되지 않는 대상</div>' +
+        '<div class="vfx-list" id="expLocked"></div>' +
+        '<div class="vfx-foot">예외 목록은 관계 기록에서 자동 구성됩니다. ' +
+          '해제하려면 가족 감면을 포기해야 합니다.</div>' +
+        '<div class="vfx-readout">' +
+          '<div class="vfx-cell"><div class="vfx-rv" id="roDec">-</div>' +
+            '<div class="vfx-rk">DECIDEDNESS<em>결정도</em></div></div>' +
+          '<div class="vfx-cell"><div class="vfx-rv" id="roFee">-</div>' +
+            '<div class="vfx-rk">ANNUAL FEE<em>연 유지비</em></div></div>' +
+          '<div class="vfx-cell"><div class="vfx-rv" id="roCnt">-</div>' +
+            '<div class="vfx-rk">EXPOSED<em>노출 항목</em></div></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="micro" id="expWarn" style="color:var(--rust); opacity:0;">결정도 0.30 아래에서는 사람들이 당신의 얼굴을 기억하지 못합니다.</div>' +
+      '<button class="ghost-btn" id="bExp">계속</button>'
+    );
+
+    var list = document.getElementById('expList');
+    EXPOSE.forEach(function(e, i){
+      var row = vfxRow({
+        i: i + 1, name: e.name, code: e.key.toUpperCase(), desc: e.desc,
+        figure: '+' + e.dec.toFixed(2), unit: 'DEC', pt: e.fee + '만원/년',
+        on: !!S.expose[e.key], cut: !S.expose[e.key]
+      });
+      function toggle(){
+        S.expose[e.key] = !S.expose[e.key];
+        row.classList.toggle('on', !!S.expose[e.key]);
+        row.classList.toggle('cut', !S.expose[e.key]);
+        row.setAttribute('aria-checked', !!S.expose[e.key]);
+        paint();
+      }
+      row.addEventListener('click', toggle);
+      row.addEventListener('keydown', function(ev){ if(ev.key===' '||ev.key==='Enter'){ ev.preventDefault(); toggle(); } });
+      list.appendChild(row);
+    });
+
+    var lockedRow = vfxRow({
+      i: 0, name: '등록 가족 3인', code: 'FAMILY',
+      desc: '당신이 등록하지 않았습니다. 관계 기록에서 자동 등록된 항목입니다.',
+      figure: '전부', unit: '허용', pt: 'LOCKED', on: true, cut: false
+    });
+    lockedRow.classList.add('locked');
+    lockedRow.removeAttribute('tabindex');
+    document.getElementById('expLocked').appendChild(lockedRow);
+
+    function paint(){
+      var d = decidedness();
+      var el = document.getElementById('roDec');
+      el.textContent = d.toFixed(2);
+      el.className = 'vfx-rv' + (d < 0.32 ? ' warn' : '');
+      document.getElementById('roFee').textContent = manwon(holdFee());
+      var on = EXPOSE.filter(function(e){ return S.expose[e.key]; }).length;
+      document.getElementById('roCnt').textContent = on + ' / ' + EXPOSE.length;
+      document.getElementById('expWarn').style.opacity = d < 0.32 ? '1' : '0';
+    }
+    paint();
+    document.getElementById('bExp').onclick = stageCalibrate;
+  }
+
+  /* ---- 확인 → 시작 ---- */
+  function stageCalibrate(){
+    stageEnter(stageExposeFilter,10);
+    var bl = blockedList();
+    var ex = EXPOSE.filter(function(e){ return S.expose[e.key]; });
+    setContent(
+      '<div class="voice-line dim" style="font-size:12.5px;">적용됩니다</div>' +
+      '<div class="invoice" style="max-width:420px;">' +
+        '<div class="invoice-row"><span>차단</span><span style="font-size:13px;">' + (bl.length ? bl.length + '개 레이어' : '없음') + '</span></div>' +
+        '<div class="invoice-row"><span>노출</span><span style="font-size:13px;">' + ex.length + ' / ' + EXPOSE.length + '개</span></div>' +
+        '<div class="invoice-row"><span>일 예상 관측세</span><span>' + won(dailyProjTax()) + '</span></div>' +
+        '<div class="invoice-row"><span>연 예상 관측세</span><span>' + wonToMan(annualTax()) + '</span></div>' +
+        '<div class="invoice-row"><span>연 절약 · 수수료</span><span>' + wonToMan(annualSaved()) + ' / ' + wonToMan(annualSaved()*0.1) + '</span></div>' +
+        '<div class="invoice-row" style="border-bottom:none;"><span>시야 완성도 · 결정도</span><span>' + visionPct() + '% · ' + decidedness().toFixed(2) + '</span></div>' +
+      '</div>' +
+      '<div class="micro">필터는 눈을 감은 상태에서 언제든 다시 조정할 수 있습니다.<br>' +
+      (eye().active ? '눈을 ' + (EYE_HOLD_MS/1000) + '초간 감으면 SYSTEM이 열립니다.' : '카메라가 없으므로 화면을 3초간 눌러 눈을 감습니다.') + '</div>' +
+      '<button class="ghost-btn" id="bOpen">시작하기</button>'
+    );
+    document.getElementById('bOpen').onclick = goExperience;
+  }
+
+  function goExperience(){
+    OB_PREV = null; OB_TOKEN++;
+    var bk = document.getElementById('obBack');
+    if(bk) bk.hidden = true;
+    onboarding.classList.add('fade-out');
+    setTimeout(function(){
+      onboarding.style.display = 'none';
+      document.getElementById('experience').hidden = false;
+      initExperience();
+    }, 620);
+  }
+
+  function start(){
+    document.getElementById('experience').hidden = true;
+    onboarding.style.display = 'block';
+    onboarding.classList.remove('fade-out');
+    stageCamera();
+  }
+
+  /* =========================================================
+     메인 경험 — WORLD
+     ========================================================= */
+
+  var sysItems = [
+    { key:'optimize', label:'OPTIMIZE', sub:'회피 규칙 · 일일 결산',  val:function(){ return won(S.spent); } },
+    { key:'shield',   label:'SHIELD',   sub:'허용 · 차단 · 예외',      val:function(){ return blockedList().length + '개 차단'; } },
+    { key:'vision',   label:'VISION',   sub:'시야 완성도',             val:function(){ return visionPct()+'%'; } },
+    { key:'budget',   label:'BUDGET',   sub:'일간 · 월간 잔여 응시',   val:function(){ return S.budgetDaily ? leftoverPct()+'%' : '없음'; } },
+    { key:'ledger',   label:'LEDGER',   sub:'일간 · 월간 · 연간 통계', val:function(){ return wonToMan(annualTax()); } },
+    { key:'hold',     label:'HOLD',     sub:'결정도 유지',             val:function(){ return decidedness().toFixed(2); } },
+    { key:'family',   label:'FAMILY',   sub:'가족 감면',               val:function(){ return '62%'; } },
+    { key:'gazer',    label:'GAZER',    sub:'공개 관측망 중계',        val:function(){ return GZ.live ? 'LIVE' : '—'; } },
+    { key:'void',     label:'',         sub:'' }
+  ];
+
+  /* =========================================================
+     GAZER — 공개 관측망 중계 설정
+
+     실제로 지금 켜져 있는 공개 카메라를 이 안으로 끌어온다.
+     1) https://www.its.go.kr/opendata 에서 무료 인증키를 받아 GAZER_KEY 에 넣는다.
+        (cctvType=1 = 실시간 HLS. 4 는 없는 값이라 항상 0건이 온다. 아래 bbox 는 서울 전역이다.)
+     2) 키 없이 쓰려면 GAZER_FEEDS 에 .m3u8 주소를 직접 적어 둔다.
+        전시장에서는 이 방식이 가장 안전하다 — API 가 죽어도 화면이 산다.
+     3) 둘 다 막히면 화면은 조용히 NO FEED 상태로 떨어진다. 거짓 영상은 띄우지 않는다.
+     ========================================================= */
+  var GAZER_KEY = '';
+  var GAZER_BBOX = { minX:126.80, maxX:127.18, minY:37.44, maxY:37.66 };
+  var GAZER_FEEDS = [
+    // { name:'예: 세종대로 사거리', url:'https://.../playlist.m3u8', x:126.977, y:37.570 }
+  ];
+  var GZ = { list:[], idx:0, hls:null, live:false, tries:0, t0:0, why:'', status:0, diag:null };
+
+  function loadHls(){
+    if(window.Hls) return Promise.resolve(window.Hls);
+    if(loadHls._p) return loadHls._p;
+    loadHls._p = new Promise(function(res, rej){
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js';
+      s.onload = function(){ window.Hls ? res(window.Hls) : rej(new Error('hls.js')); };
+      s.onerror = function(){ rej(new Error('hls.js 를 불러오지 못했습니다')); };
+      document.head.appendChild(s);
+    });
+    return loadHls._p;
+  }
+
+  // 순서가 매번 같으면 늘 같은 화면만 본다
+  function gazerShuffle(a){
+    for(var i = a.length-1; i > 0; i--){
+      var k = Math.floor(Math.random()*(i+1)), t = a[i]; a[i] = a[k]; a[k] = t;
+    }
+    return a;
+  }
+
+  // 1순위: 같은 주소의 /api/cctv (Vercel 에 올렸을 때. 키가 서버에만 있어 노출되지 않는다)
+  // 2순위: GAZER_KEY 로 직접 호출 (로컬 테스트용. 브라우저가 막을 수 있다)
+  // 3순위: GAZER_FEEDS 에 적어 둔 주소
+  // https 페이지에서 http 스트림은 브라우저가 막는다
+  function gazerHttps(u){ return String(u || '').replace(/^http:\/\//i, 'https://'); }
+  function gazerStreamUrl(u){ return '/api/hls?url=' + encodeURIComponent(String(u || '')); }
+
+  function gazerFetchList(){
+    GZ.why = '';
+    return fetch('/api/cctv').then(function(r){
+      GZ.status = r.status;
+      return r.json().catch(function(){ throw new Error('/api/cctv 가 JSON 을 돌려주지 않았습니다 (HTTP ' + r.status + '). 함수가 배포되지 않았거나 실행 중 죽었습니다.'); });
+    }).then(function(j){
+      GZ.diag = j.diag || null;
+      if(j.error) throw new Error(j.error);
+      if(!j.list || !j.list.length) throw new Error('목록이 비어 있습니다.');
+      return gazerShuffle(j.list.slice()).concat(GAZER_FEEDS);
+    }).catch(function(err){
+      GZ.why = (err && err.message) || String(err);
+      return GAZER_FEEDS.length ? gazerDirect() : Promise.reject(err);       // API가 실패할 때만 직접 호출을 시도한다
+    });
+  }
+
+  function gazerDirect(){
+    if(!GAZER_KEY) return Promise.resolve(GAZER_FEEDS.slice());
+    function one(type){
+      var u = 'https://openapi.its.go.kr:9443/cctvInfo?apiKey=' + encodeURIComponent(GAZER_KEY) +
+              '&type=' + type + '&cctvType=1&getType=json' +
+              '&minX=' + GAZER_BBOX.minX + '&maxX=' + GAZER_BBOX.maxX +
+              '&minY=' + GAZER_BBOX.minY + '&maxY=' + GAZER_BBOX.maxY;
+      return fetch(u).then(function(r){ return r.json(); }).then(function(j){
+        var r2 = (j && j.response) || {};
+        var d = Array.isArray(r2.data) ? r2.data : (r2.data ? [r2.data] : []);
+        return d.filter(function(c){ return c && c.cctvurl; }).map(function(c){
+          return { name:c.cctvname || '이름 없는 관측점', url:gazerHttps(c.cctvurl),
+                   x:parseFloat(c.coordx), y:parseFloat(c.coordy) };
+        });
+      }).catch(function(){ return []; });
+    }
+    return Promise.all([one('its'), one('ex')]).then(function(rs){
+      var seen = {}, out = [];
+      rs.forEach(function(arr){ arr.forEach(function(c){
+        if(seen[c.url]) return; seen[c.url] = 1; out.push(c);
+      }); });
+      return gazerShuffle(out).concat(GAZER_FEEDS);
+    });
+  }
+
+  function killGazer(){
+    if(GZ.hls){ try{ GZ.hls.destroy(); }catch(e){} GZ.hls = null; }
+    var v = document.getElementById('gzVideo');
+    if(v){ try{ v.pause(); v.removeAttribute('src'); v.load(); }catch(e){} }
+    GZ.live = false;
+  }
+
+  function gazerState(s1, s2){
+    var st = document.getElementById('gzState');
+    if(!st) return;
+    st.innerHTML = '<div class="s1">' + s1 + '</div>' +
+                   (s2 ? '<div class="s2">' + s2 + '</div>' : '');
+  }
+
+  function gazerPlay(i){
+    var box = document.getElementById('gzBox'), v = document.getElementById('gzVideo');
+    if(!box || !v || !GZ.list.length) return;
+    GZ.idx = ((i % GZ.list.length) + GZ.list.length) % GZ.list.length;
+    var item = GZ.list[GZ.idx];
+    killGazer();
+    box.classList.remove('live');
+    gazerState('CONNECTING', item.name + ' 관측점에 접속하고 있습니다.');
+    document.getElementById('gzName').innerHTML = '<i></i>' + escapeHtml(item.name);
+    document.getElementById('gzCoord').innerHTML =
+      (isFinite(item.y) ? item.y.toFixed(4) : '—') + ' N<br>' +
+      (isFinite(item.x) ? item.x.toFixed(4) : '—') + ' E';
+    GZ.t0 = performance.now();
+
+    function up(){
+      box.classList.add('live'); GZ.live = true;
+      var ms = Math.round(performance.now() - GZ.t0);
+      var d = document.getElementById('gzDelay');
+      if(d) d.textContent = 'HLS · 접속 ' + ms + 'ms';
+      refreshMenuValues();
+    }
+    function down(msg){
+      box.classList.remove('live'); GZ.live = false;
+      gazerState('NO FEED', msg);
+      refreshMenuValues();
+    }
+
+    loadHls().then(function(Hls){
+      if(Hls.isSupported()){
+        var h = new Hls({ lowLatencyMode:true, liveDurationInfinity:true });
+        GZ.hls = h;
+        h.loadSource(gazerStreamUrl(item.url));
+        h.attachMedia(v);
+        h.on(Hls.Events.MANIFEST_PARSED, function(){ v.play().then(up).catch(up); });
+        h.on(Hls.Events.ERROR, function(e, data){
+          if(!data.fatal) return;
+          down('이 관측점의 신호가 브라우저까지 오지 못했습니다.<br>' +
+               '대개 교차 출처(CORS) 차단이거나 주소가 만료된 경우입니다. 다음 관측점을 눌러보세요.');
+        });
+      } else if(v.canPlayType('application/vnd.apple.mpegurl')){
+        v.src = gazerStreamUrl(item.url);
+        v.addEventListener('loadeddata', up, { once:true });
+        v.addEventListener('error', function(){ down('이 관측점을 재생할 수 없습니다.'); }, { once:true });
+        v.play().catch(function(){});
+      } else {
+        down('이 브라우저는 HLS 를 재생하지 못합니다.');
+      }
+    }).catch(function(err){
+      down(err.message + '. 네트워크가 막혀 있는지 확인하세요.');
+    });
+  }
+
+  function wireGazer(){
+    var next = document.getElementById('gzNext');
+    var apply = document.getElementById('gzApply');
+    var input = document.getElementById('gzInput');
+
+    // 왜 안 되는지는 추측이 아니라 화면에 적혀 있어야 한다
+    function gazerDiagLine(){
+      var d = GZ.diag, bits = [];
+      if(GZ.status) bits.push('/api/cctv → HTTP ' + GZ.status);
+      if(d){
+        bits.push(d.keyPresent ? 'ITS_KEY 있음' : 'ITS_KEY 없음 (데모키 test 로 시도)');
+        bits.push('cctvType=' + d.cctvType);
+        (d.probes || []).forEach(function(p){
+          bits.push(p.type + ': ' + (p.error ? p.error : p.count + '건 → ' + p.kept + '개'));
+        });
+      }
+      if(GZ.why) bits.push(GZ.why);
+      return bits.length
+        ? '<span style="font-family:var(--mono); font-size:9.5px; color:var(--faint);">' +
+          escapeHtml(bits.join('  ·  ')) + '</span>'
+        : '';
+    }
+
+    function boot(){
+      gazerState('SEARCHING', '공개 관측망 목록을 받아오고 있습니다.');
+      gazerFetchList().then(function(list){
+        GZ.list = list;
+        if(!list.length){
+          gazerState('NO FEED',
+            '연결된 관측점이 없습니다.<br>' +
+            (GZ.why ? escapeHtml(GZ.why) + '<br>' : '') +
+            'Vercel 이라면 Settings → Environment Variables 의 ITS_KEY 를 확인하고, ' +
+            '추가한 뒤에는 Redeploy 를 한 번 눌러야 반영됩니다.<br>' + gazerDiagLine());
+          if(next) next.disabled = true;
+          return;
+        }
+        if(next) next.disabled = list.length < 2;
+        gazerPlay(0);
+      }).catch(function(err){
+        GZ.list = GAZER_FEEDS.slice();
+        if(GZ.list.length){ gazerPlay(0); return; }
+        gazerState('BLOCKED',
+          '관측망 목록을 받아오지 못했습니다.<br>' +
+          escapeHtml((err && err.message) || GZ.why || '') + '<br>' + gazerDiagLine());
+      });
+    }
+
+    if(next) next.onclick = function(){ gazerPlay(GZ.idx + 1); };
+
+    var diagBtn = document.getElementById('gzDiag');
+    if(diagBtn) diagBtn.onclick = function(){
+      killGazer();
+      document.getElementById('gzBox').classList.remove('live');
+      gazerState('DIAGNOSING', '/api/cctv 를 직접 호출하고 있습니다.');
+      fetch('/api/cctv').then(function(r){
+        GZ.status = r.status;
+        return r.text();
+      }).then(function(t){
+        var j = null;
+        try{ j = JSON.parse(t); }catch(e){}
+        if(!j){
+          gazerState('FUNCTION DOWN',
+            '/api/cctv 가 JSON 대신 다른 것을 돌려줬습니다 (HTTP ' + GZ.status + ').<br>' +
+            'api 폴더와 package.json 이 함께 배포됐는지 확인하세요.<br>' +
+            '<span style="font-family:var(--mono); font-size:9.5px; color:var(--faint);">' +
+            escapeHtml(t.slice(0, 200)) + '</span>');
+          return;
+        }
+        GZ.diag = j.diag || null;
+        GZ.why = j.error || '';
+        gazerState(j.count ? 'OK · ' + j.count + '개' : 'EMPTY', gazerDiagLine());
+      }).catch(function(e){
+        gazerState('UNREACHABLE', escapeHtml(String((e && e.message) || e)));
+      });
+    };
+    if(apply) apply.onclick = function(){
+      var val = (input.value || '').trim();
+      if(!val) return;
+      if(/\.m3u8/.test(val)){                       // 주소를 그대로 넣은 경우
+        GZ.list = [{ name:'직접 입력한 관측점', url:val, x:NaN, y:NaN }].concat(GAZER_FEEDS);
+        if(next) next.disabled = GZ.list.length < 2;
+        gazerPlay(0);
+      } else {                                      // 인증키
+        GAZER_KEY = val;
+        boot();
+      }
+      input.value = '';
+    };
+    boot();
+  }
+
+  var focusIndex = 0, inSystem = false, inPanel = false, closing = false;
+  var closeTimer = null, closeStart = 0, HOLD_MS = 3000;
+  var currentPanel = null;
+
+  function buildCity(){
+    var el = document.getElementById('city'), html = '', x = 0;
+    while(x < 100){
+      var w = 4 + Math.random()*7, h = 30 + Math.random()*70;
+      html += '<i style="width:'+w+'%; height:'+h+'%;"></i>';
+      x += w;
+    }
+    el.innerHTML = html;
+  }
+
+  function buildMenu(){
+    var list = document.getElementById('sysList');
+    list.innerHTML = '';
+    sysItems.forEach(function(item, i){
+      var li = document.createElement('li');
+      if(item.key === 'void'){ li.className = 'void-item'; }
+      else {
+        li.innerHTML = '<div class="k">'+item.label+'</div><div class="s">'+item.sub+'</div>' +
+                       '<div class="v">'+(item.val?item.val():'')+'</div>';
+      }
+      li.addEventListener('click', function(){ focusIndex = i; updateFocus(); openPanel(item.key); });
+      list.appendChild(li);
+    });
+    updateFocus();
+  }
+
+  function refreshMenuValues(){
+    var lis = document.querySelectorAll('#sysList li');
+    sysItems.forEach(function(item, i){
+      if(item.key === 'void' || !lis[i]) return;
+      var v = lis[i].querySelector('.v');
+      if(v && item.val) v.textContent = item.val();
+    });
+    document.getElementById('sysHead').innerHTML =
+      '눈 감음 · 과금 정지 중<br>오늘 관측세 <b>'+won(S.spent)+'</b> · 절약 <b>'+won(S.saved)+'</b>';
+  }
+
+  function updateFocus(){
+    var lis = document.querySelectorAll('#sysList li');
+    Array.prototype.forEach.call(lis, function(li, i){ li.classList.toggle('focused', i === focusIndex); });
+  }
+
+  /* ---------- HUD ---------- */
+  function paintHud(){
+    document.getElementById('rvTax').textContent = won(S.spent);
+    document.getElementById('rvSaved').textContent = won(S.saved);
+    var vEl = document.getElementById('rvVision');
+    vEl.textContent = visionPct() + '%';
+    vEl.className = 'rv' + (visionPct() < 70 ? ' warn' : '');
+    document.getElementById('rvDecid').textContent = decidedness().toFixed(2);
+
+    var left = leftoverPct();
+    document.getElementById('bdLeft').textContent = S.budgetDaily ? left + '%' : '—';
+    document.getElementById('bdAmt').textContent =
+      won(S.spent) + ' / ' + (S.budgetDaily ? won(S.budgetDaily) : '상한 없음');
+    var fill = document.getElementById('bdFill');
+    var used = S.budgetDaily ? Math.min(100, (S.spent/S.budgetDaily)*100) : Math.min(100,(S.spent/FULL_DAILY)*100);
+    fill.style.width = used.toFixed(1) + '%';
+    fill.classList.toggle('over', S.forced);
+
+    // 시야 완성도가 낮을수록 세계가 덜 보임 (약한 결합)
+    var w = document.getElementById('world');
+    w.style.opacity = (0.72 + 0.28 * visionPct()/100).toFixed(2);
+    w.classList.toggle('over-budget', S.forced);
+  }
+
+  function pushFeed(html){
+    var feed = document.getElementById('hudFeed');
+    var d = document.createElement('div');
+    d.className = 'feed-item';
+    d.innerHTML = html;
+    feed.appendChild(d);
+    while(feed.children.length > 5) feed.removeChild(feed.firstChild);
+    setTimeout(function(){ if(d.parentNode) d.parentNode.removeChild(d); }, 7000);
+  }
+
+  /* ---------- 지나가는 것들 ---------- */
+  function pickLayer(){
+    var total = VIEW_LAYERS.reduce(function(a,l){ return a+l.cost; }, 0);
+    var r = Math.random()*total;
+    for(var i=0;i<VIEW_LAYERS.length;i++){
+      r -= VIEW_LAYERS[i].cost;
+      if(r <= 0) return VIEW_LAYERS[i];
+    }
+    return VIEW_LAYERS[0];
+  }
+
+  function spawnEntity(){
+    var world = document.getElementById('world');
+    if(!world) return;
+    var l = pickLayer();
+    var unit = Math.max(20, Math.round(l.cost/14));
+    var blocked = isBlocked(l.key);
+
+    var el = document.createElement('div');
+    el.className = 'ent' + (blocked ? ' blocked' : '');
+    var h = 26 + Math.random()*34;
+    var bottom = 4 + Math.random()*16;
+    var dir = Math.random() > 0.5 ? 1 : -1;
+    var dur = 9000 + Math.random()*5000;
+    el.style.bottom = bottom + '%';
+    var tag = S.forced ? '블러 · ' + l.short
+            : blocked ? '차단 · ' + l.short
+            : '+' + won(unit);
+    el.innerHTML = '<div class="ent-body" style="height:'+h+'px"></div>' +
+                   '<div class="ent-tag">' + tag + '</div>';
+    el.style.left = (dir === 1 ? -6 : 106) + '%';
+    world.appendChild(el);
+
+    var startX = dir === 1 ? -6 : 106;
+    var endX   = dir === 1 ? 106 : -6;
+    var t0 = performance.now();
+    (function step(now){
+      var t = Math.min(1, (now - t0)/dur);
+      el.style.left = (startX + (endX-startX)*t) + '%';
+      if(t < 1){ requestAnimationFrame(step); }
+      else if(el.parentNode){ el.parentNode.removeChild(el); }
+    })(t0);
+
+    if(blocked){
+      S.saved += unit;
+      S.blockedCount++;
+      S.byLayer[l.key].block++;
+      pushFeed(S.forced
+        ? '<span class="b">블러</span> ' + l.name + ' · 절약 ' + won(unit)
+        : '<span class="b">차단</span> ' + l.name + ' · 절약 ' + won(unit));
+    } else {
+      S.spent += unit;
+      S.passed++;
+      S.byLayer[l.key].pass++;
+      pushFeed('<span class="p">통과</span> ' + l.name + ' · ' + won(unit));
+      if(S.budgetDaily && S.spent >= S.budgetDaily && !S.forced){
+        S.forced = true;
+        Array.prototype.forEach.call(world.querySelectorAll('.ent-tag'), function(t){ t.textContent = '블러'; });
+        pushFeed('<span class="p">예산 초과</span> 전면 블러로 전환됨');
+        say('오늘 응시 예산 ' + spWon(S.budgetDaily) + '을 초과했습니다. 지금부터 모든 물체가 자동으로 블러 처리됩니다. 이동에 필요한 윤곽만 남습니다.', {interrupt:true});
+      }
+    }
+    paintHud();
+    if(inSystem) refreshMenuValues();
+  }
+
+  /* =========================================================
+     SYSTEM 패널
+     ========================================================= */
+
+  function ruleLines(){
+    var bl = blockedList();
+    if(!bl.length) return ['차단 규칙 없음. 모든 것이 과금됩니다.'];
+    return bl.map(function(l){
+      var c = S.byLayer[l.key].block;
+      return l.name + ' — 오늘 ' + c + '회 차단, ' + won(Math.round(l.cost/14)*c) + ' 절약';
+    });
+  }
+
+  function panelContent(key){
+    if(key === 'optimize'){
+      var dots = '';
+      var total = 36;
+      var blockedRatio = FULL_DAILY ? dailyProjSaved()/FULL_DAILY : 0;
+      var visibleCount = Math.max(1, Math.round(total * (1 - blockedRatio)));
+      for(var i=0;i<total;i++){ dots += '<i class="'+(i<visibleCount?'focus':'')+'"></i>'; }
+      var rules = ruleLines().map(function(t){ return '<div class="stat-row" style="font-size:12px;"><span>'+escapeHtml(t)+'</span><span></span></div>'; }).join('');
+      return '<div class="panel-title">OPTIMIZE — 회피 규칙과 일일 결산</div>' +
+        '<div class="crowd">'+dots+'</div>' +
+        '<div class="stat-row"><span>오늘 세액</span><span>'+won(S.spent)+'</span></div>' +
+        '<div class="stat-row"><span>최적화 없이는</span><span>'+won(S.spent + S.saved)+'</span></div>' +
+        '<div class="stat-row total"><span>절약분 · 수수료</span><span>'+won(S.saved)+' / '+won(S.saved*0.1)+'</span></div>' +
+        '<div class="flt-group-label" style="margin-top:24px;">적용 중인 회피 규칙</div>' + rules +
+        '<div class="italic-line">오늘 ' + S.blockedCount + '명을 아무도 아닌 사람으로 두었습니다.</div>';
+    }
+
+    if(key === 'shield'){
+      var allowNames = EXPOSE.filter(function(e){ return S.expose[e.key]; }).map(function(e){ return e.name; });
+      var blockNames = EXPOSE.filter(function(e){ return !S.expose[e.key]; }).map(function(e){ return e.name; });
+      var viewBlock = blockedList().map(function(l){ return l.name; });
+      var html = '<div class="panel-title">SHIELD — 허용 · 차단 · 예외</div>' +
+        '<div class="contract-cols">' +
+          '<div><h5 style="color:var(--teal)">허용</h5><p>' + (allowNames.join(', ') || '없음') + '</p></div>' +
+          '<div><h5 style="color:var(--rust)">차단</h5><p>' + (blockNames.concat(viewBlock).join(', ') || '없음') + '</p></div>' +
+          '<div><h5 style="color:var(--muted)">예외</h5><p>' + FAMILY.join(', ') + ' 전부 허용</p></div>' +
+        '</div>' +
+        '<div class="flt-group-label" style="margin-top:26px;">시야 필터 — 내가 보지 않을 것</div><div class="flt-list" id="pViewList"></div>' +
+        '<div class="flt-group-label">노출 필터 — 남이 나에게서 읽을 것</div><div class="flt-list" id="pExpList"></div>' +
+        '<div class="italic-line">이 설정을 유지하는 동안, 당신을 다르게 볼 수 있는 사람은 없습니다.</div>';
+      return html;
+    }
+
+    if(key === 'vision'){
+      var miss = blockedList();
+      var missHtml = miss.length
+        ? miss.map(function(l){ return '<div><i>—</i>'+l.name+' (−'+l.vision+')</div>'; }).join('')
+        : '<div style="color:var(--dim)">제거된 레이어가 없습니다.</div>';
+      var v = visionPct();
+      var off = 314 * (1 - v/100);
+      return '<div class="panel-title">VISION — 현재 시야 완성도</div>' +
+        '<div class="ring-family">' +
+          '<svg class="ring-svg" width="120" height="120" viewBox="0 0 120 120">' +
+            '<circle cx="60" cy="60" r="50" fill="none" stroke="#2A2C29" stroke-width="9"/>' +
+            '<circle cx="60" cy="60" r="50" fill="none" stroke="'+(v<70?'#CD432C':'#8C8F89')+'" stroke-width="9" stroke-dasharray="314" stroke-dashoffset="'+off.toFixed(1)+'" transform="rotate(-90 60 60)"/>' +
+            '<text x="60" y="66" text-anchor="middle" font-size="21" fill="rgba(255,255,255,.85)">'+v+'%</text>' +
+          '</svg>' +
+          '<div style="flex:1;">' +
+            '<div class="stat-row"><span>제거된 레이어</span><span>'+miss.length+' / '+VIEW_LAYERS.length+'</span></div>' +
+            '<div class="stat-row"><span>차단 시야량</span><span>'+blockedList().reduce(function(a,l){return a+l.vision;},0)+' / '+FULL_VISION+'pt</span></div>' +
+            '<div class="stat-row" style="border-bottom:none;"><span>오늘 차단 건수</span><span>'+S.blockedCount+'회</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="flt-group-label" style="margin-top:22px;">보이지 않는 것</div>' +
+        '<div class="miss-list">'+missHtml+'</div>' +
+        (S.forced ? '<div class="hold-warn">예산 초과로 전면 블러 처리 중입니다. 설정과 무관하게 지금 모든 물체가 흐려져 있습니다. 통행에 필요한 윤곽만 유지됩니다.</div>' : '') +
+        (v < 70 ? '<div class="hold-warn">시야 완성도가 70% 아래입니다. 거리에서 일어나는 일 중 일부는 당신에게 도달하지 않습니다.</div>' : '');
+    }
+
+    if(key === 'budget'){
+      var dUsed = S.budgetDaily ? Math.min(100, S.spent/S.budgetDaily*100) : 0;
+      var mUsed = monthBudget() ? Math.min(100, monthSpent()/monthBudget()*100) : 0;
+      return '<div class="panel-title">BUDGET — 일간 · 월간 잔여 응시</div>' +
+        '<div class="big-metric">'+(S.budgetDaily?leftoverPct()+'%':'—')+'<small>오늘 남은 응시</small></div>' +
+        '<div class="pbar"><i style="width:'+dUsed.toFixed(1)+'%"></i></div>' +
+        '<div class="pbar-legend"><span>'+won(S.spent)+'</span><span>'+(S.budgetDaily?won(S.budgetDaily):'상한 없음')+'</span></div>' +
+        '<div class="big-metric" style="margin-top:30px;">'+(monthBudget()?monthLeftoverPct()+'%':'—')+'<small>이번 달 남은 응시</small></div>' +
+        '<div class="pbar"><i style="width:'+mUsed.toFixed(1)+'%"></i></div>' +
+        '<div class="pbar-legend"><span>'+won(monthSpent())+'</span><span>'+(monthBudget()?won(monthBudget()):'상한 없음')+'</span></div>' +
+        '<div class="stat-row" style="margin-top:26px;"><span>일 평균 사용</span><span>'+won(dailyProjTax())+'</span></div>' +
+        '<div class="stat-row"><span>이번 달 경과</span><span>'+(S.monthDayIndex+1)+' / 30일</span></div>' +
+        '<div class="stat-row" style="border-bottom:none;"><span>현재 속도로 소진되는 날</span><span>'+
+          (S.budgetDaily ? (dailyProjTax() ? Math.min(30, Math.floor(monthBudget()/dailyProjTax())) + '일차' : '소진 없음') : '—') +
+        '</span></div>' +
+        (S.forced ? '<div class="hold-warn">오늘 예산을 넘겼습니다. 모든 물체가 자동으로 블러 처리되고 있습니다.</div>' : '');
+    }
+
+    if(key === 'ledger'){
+      return '<div class="panel-title">LEDGER — 응시 통계</div>' +
+        '<div class="tabs" id="ledgerTabs">' +
+          '<div class="tab on" data-t="d">일간</div><div class="tab" data-t="m">월간</div><div class="tab" data-t="y">연간</div>' +
+        '</div><div id="ledgerBody"></div>';
+    }
+
+    if(key === 'hold'){
+      return '<div class="panel-title">HOLD — 유지 대상 · 강도 조정</div>' +
+        '<div class="big-metric" id="holdDec">'+decidedness().toFixed(2)+'<small>현재 결정도 · '+bandOf(decidedness()).name+'</small></div>' +
+        '<input type="range" min="40" max="100" value="100" class="hold-slider" id="holdRange" aria-label="유지 강도">' +
+        '<div class="hold-compare"><span id="holdAmt">'+manwon(holdFee())+' / 년</span><span id="holdPct">100%</span></div>' +
+        '<div class="hold-warn" id="holdWarn" style="opacity:0;">0.30 아래로 내려가면 사람들이 당신의 얼굴을 기억하지 못하게 됩니다.</div>' +
+        '<div class="italic-line">유지 강도를 낮추면 노출 항목이 순서대로 흐려집니다.</div>';
+    }
+
+    if(key === 'family'){
+      return '<div class="panel-title">FAMILY — 상호 응시 이행률</div>' +
+        '<div class="ring-family">' +
+          '<svg class="ring-svg" width="120" height="120" viewBox="0 0 120 120">' +
+            '<circle cx="60" cy="60" r="50" fill="none" stroke="#2A2C29" stroke-width="9"/>' +
+            '<circle cx="60" cy="60" r="50" fill="none" stroke="#CD432C" stroke-width="9" stroke-dasharray="314" stroke-dashoffset="119" transform="rotate(-90 60 60)"/>' +
+            '<text x="60" y="66" text-anchor="middle" font-size="21" fill="rgba(255,255,255,.85)">62%</text>' +
+          '</svg>' +
+          '<div style="flex:1;">' +
+            '<div class="stat-row"><span>감면 유지 기준</span><span>70%</span></div>' +
+            '<div class="stat-row"><span>잔여 일수</span><span style="color:var(--rust)">8일</span></div>' +
+            '<div class="stat-row" style="border-bottom:none;"><span>등록 경로</span><span>관계 기록 자동</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="italic-line">가족 3인은 당신의 신청 없이 예외 목록에 올라 있습니다. 감면을 받는 대신 그들을 차단할 수 없고, 보지 않으면 이행률이 떨어집니다.</div>';
+    }
+
+    if(key === 'gazer'){
+      return '<div class="panel-title">GAZER — 공개 관측망 중계</div>' +
+        '<div class="placeholder-note">지금 이 순간 공개 관측망이 송출하고 있는 화면입니다. ' +
+        '당신의 시야가 아니라, 아무도 응시하지 않아도 계속 켜져 있는 시야입니다.</div>' +
+        '<div class="gz-box" id="gzBox">' +
+          '<video id="gzVideo" muted playsinline autoplay></video>' +
+          '<div class="gz-grid"></div><div class="gz-scan"></div>' +
+          '<i class="gz-c tl"></i><i class="gz-c tr"></i><i class="gz-c bl"></i><i class="gz-c br"></i>' +
+          '<div class="gz-tag" id="gzName"></div>' +
+          '<div class="gz-coord" id="gzCoord"></div>' +
+          '<div class="gz-foot"><span id="gzDelay">—</span><span><b>과금 면제</b> · 공공 예외</span></div>' +
+          '<div class="gz-state" id="gzState"><div class="s1">STANDBY</div></div>' +
+        '</div>' +
+        '<div class="gz-bar">' +
+          '<button class="gz-btn" id="gzNext" type="button">다음 관측점</button>' +
+          '<button class="gz-btn" id="gzDiag" type="button">연결 진단</button>' +
+        '</div>' +
+        '<div class="gz-key">' +
+          '<input id="gzInput" type="text" placeholder="인증키 또는 .m3u8 주소" autocomplete="off" spellcheck="false">' +
+          '<button class="gz-btn" id="gzApply" type="button">연결</button>' +
+        '</div>' +
+        '<div class="stat-row" style="margin-top:22px;"><span>중계원</span><span>공개 교통 관측망</span></div>' +
+        '<div class="stat-row"><span>이 화면의 관측세</span><span>면제</span></div>' +
+        '<div class="stat-row" style="border-bottom:none;"><span>얼굴 인식</span><span>미적용</span></div>' +
+        '<div class="italic-line">이 중계는 화면 속 사람을 인식하지 않습니다. ' +
+        '당신이 사람을 보면 과금되지만, 관측망이 사람을 보는 데에는 아무도 돈을 내지 않습니다. ' +
+        '요율표에 없는 응시가 하루 종일 계속되고 있습니다.</div>';
+    }
+    return '';
+  }
+
+  function ledgerBody(t){
+    var totalEvents = S.passed + S.blockedCount;
+    if(t === 'd'){
+      var top = VIEW_LAYERS.slice().sort(function(a,b){ return S.byLayer[b.key].block - S.byLayer[a.key].block; })[0];
+      return '<div class="stat-row"><span>응시 건수</span><span>'+totalEvents+'건</span></div>' +
+        '<div class="stat-row"><span>통과 · 차단</span><span>'+S.passed+' / '+S.blockedCount+'</span></div>' +
+        '<div class="stat-row"><span>차단률</span><span>'+(totalEvents?Math.round(S.blockedCount/totalEvents*100):0)+'%</span></div>' +
+        '<div class="stat-row"><span>오늘 세액</span><span>'+won(S.spent)+'</span></div>' +
+        '<div class="stat-row"><span>오늘 절약</span><span>'+won(S.saved)+'</span></div>' +
+        '<div class="stat-row total"><span>남은 응시</span><span>'+(S.budgetDaily?leftoverPct()+'%':'상한 없음')+'</span></div>' +
+        '<div class="italic-line">가장 많이 차단한 레이어: '+(top && S.byLayer[top.key].block ? top.name : '없음')+'</div>';
+    }
+    if(t === 'm'){
+      return '<div class="stat-row"><span>경과</span><span>'+(S.monthDayIndex+1)+' / 30일</span></div>' +
+        '<div class="stat-row"><span>누적 세액</span><span>'+won(monthSpent())+'</span></div>' +
+        '<div class="stat-row"><span>누적 절약</span><span>'+won(dailyProjSaved()*S.monthDayIndex + S.saved)+'</span></div>' +
+        '<div class="stat-row"><span>일 평균</span><span>'+won(monthSpent()/(S.monthDayIndex+1))+'</span></div>' +
+        '<div class="stat-row"><span>월 예산 대비</span><span>'+(monthBudget()?Math.round(monthSpent()/monthBudget()*100)+'%':'—')+'</span></div>' +
+        '<div class="stat-row total"><span>이번 달 남은 응시</span><span>'+(monthBudget()?monthLeftoverPct()+'%':'상한 없음')+'</span></div>' +
+        '<div class="italic-line">이번 달 예상 청구액 '+wonToMan(dailyProjTax()*30)+' · 수수료 '+wonToMan(dailyProjSaved()*30*0.1)+'</div>';
+    }
+    var coh = cohortNumbers(S.profile);
+    return '<div class="stat-row"><span>현재 예상 연 관측세</span><span>'+wonToMan(annualTax())+'</span></div>' +
+      '<div class="stat-row"><span>필터 없이는</span><span>'+wonToMan(FULL_DAILY*365)+'</span></div>' +
+      '<div class="stat-row"><span>연 절약</span><span>'+wonToMan(annualSaved())+' ('+Math.round(dailyProjSaved()/FULL_DAILY*100)+'%)</span></div>' +
+      '<div class="stat-row"><span>수수료 (절약분 10%)</span><span>'+wonToMan(annualSaved()*0.1)+'</span></div>' +
+      '<div class="stat-row"><span>결정도 유지비</span><span>'+manwon(holdFee())+'</span></div>' +
+      '<div class="stat-row total"><span>연 합계</span><span>'+wonToMan(annualTax() + annualSaved()*0.1 + holdFee()*10000)+'</span></div>' +
+      '<div class="italic-line">'+escapeHtml(cohortLabel(S.profile))+' 평균은 '+manwon(coh.annual)+'입니다. 당신은 '+
+        (annualTax()/10000 < coh.annual ? '평균보다 '+manwon(coh.annual - annualTax()/10000)+' 아래' : '평균보다 '+manwon(annualTax()/10000 - coh.annual)+' 위')+'입니다.</div>';
+  }
+
+  /* ---------- 낭독 ---------- */
+  function speechText(key){
+    if(key === 'ledger'){
+      var ev = S.passed + S.blockedCount;
+      return '오늘 응시 ' + ev + '건. 통과 ' + S.passed + '건, 차단 ' + S.blockedCount + '건. ' +
+             '차단률 ' + spPct(ev ? S.blockedCount/ev*100 : 0) + '. ' +
+             '오늘 세액 ' + spWon(S.spent) + ', 절약 ' + spWon(S.saved) + '. ' +
+             '이번 달 누적 ' + spWon(monthSpent()) + '. ' +
+             '현재 예상 연 관측세 ' + spMan(annualTax()/10000) + ', ' +
+             '연 절약 ' + spMan(annualSaved()/10000) + ', ' +
+             '수수료 ' + spMan(annualSaved()*0.1/10000) + '.';
+    }
+    if(key === 'hold'){
+      return '현재 결정도 ' + decidedness().toFixed(2) + ', ' + bandOf(decidedness()).name + ' 구간. ' +
+             bandOf(decidedness()).desc + ' 연 유지비 ' + spMan(holdFee()) + '. ' +
+             (decidedness() < 0.32 ? '경고. 0.3 아래에서는 사람들이 당신의 얼굴을 기억하지 못합니다.'
+                                   : '유지 강도를 낮추면 노출 항목이 순서대로 흐려집니다.');
+    }
+    if(key === 'family'){
+      return '가족 상호 응시 이행률 62퍼센트. 감면 유지 기준 70퍼센트. 잔여 8일. ' +
+             '등록 가족 3인은 관계 기록에서 자동 등록되어 예외 목록에 있습니다. 차단할 수 없습니다.';
+    }
+    if(key === 'gazer'){
+      return '공개 관측망 중계. ' +
+        (GZ.live ? '지금 ' + (GZ.list[GZ.idx] ? GZ.list[GZ.idx].name : '한 지점') + '에서 송출 중입니다. '
+                 : '연결된 관측점이 없습니다. ') +
+        '이 화면의 관측세는 면제입니다. 얼굴 인식은 적용되지 않습니다. ' +
+        '당신이 사람을 보면 과금되지만, 관측망이 사람을 보는 데에는 아무도 돈을 내지 않습니다.';
+    }
+    if(key === 'shield'){
+      var allow = EXPOSE.filter(function(e){ return S.expose[e.key]; }).map(function(e){ return e.name; });
+      var block = EXPOSE.filter(function(e){ return !S.expose[e.key]; }).map(function(e){ return e.name; })
+                    .concat(blockedList().map(function(l){ return l.name; }));
+      return '허용. ' + (allow.join(', ') || '없음') + '. ' +
+             '차단. ' + (block.join(', ') || '없음') + '. ' +
+             '예외. ' + FAMILY.join(', ') + ', 전부 허용.';
+    }
+    if(key === 'optimize'){
+      var rules = blockedList()
+        .filter(function(l){ return S.byLayer[l.key].block > 0; })
+        .map(function(l){ return l.name + ' ' + S.byLayer[l.key].block + '회'; });
+      return '오늘 결산. 세액 ' + spWon(S.spent) + '. 최적화 없이는 ' + spWon(S.spent + S.saved) + '. ' +
+             '절약 ' + spWon(S.saved) + ', 수수료 ' + spWon(S.saved*0.1) + '. ' +
+             '적용 중인 회피 규칙. ' + (rules.join(', ') || '아직 차단된 것이 없습니다') + '. ' +
+             '오늘 ' + S.blockedCount + '명을 아무도 아닌 사람으로 두었습니다.';
+    }
+    if(key === 'vision'){
+      var m = blockedList().map(function(l){ return l.name; });
+      return '시야 완성도 ' + spPct(visionPct()) + '. 제거된 레이어 ' + m.length + '개. ' +
+             '보이지 않는 것. ' + (m.join(', ') || '없음') + '.' +
+             (visionPct() < 70 ? ' 거리에서 일어나는 일 중 일부는 당신에게 도달하지 않습니다.' : '');
+    }
+    if(key === 'budget'){
+      return '오늘 남은 응시 ' + (S.budgetDaily ? spPct(leftoverPct()) : '상한 없음') + '. ' +
+             '사용 ' + spWon(S.spent) + ', 예산 ' + (S.budgetDaily ? spWon(S.budgetDaily) : '없음') + '. ' +
+             '이번 달 남은 응시 ' + (monthBudget() ? spPct(monthLeftoverPct()) : '상한 없음') + '. ' +
+             '이번 달 누적 ' + spWon(monthSpent()) + '. 일 평균 ' + spWon(dailyProjTax()) + '.' +
+             (S.forced ? ' 오늘 예산을 초과하여 전면 블러 처리 중입니다.' : '');
+    }
+    return '';
+  }
+
+  var SPEAKABLE = { shield:1, optimize:1, vision:1, budget:1, ledger:1, hold:1, family:1, gazer:1 };
+
+  function stopSpeech(){
+    if(window.speechSynthesis) window.speechSynthesis.cancel();
+    var b = document.getElementById('speakBtn');
+    if(b) b.classList.remove('on');
+  }
+
+  function toggleSpeech(){
+    var btn = document.getElementById('speakBtn');
+    if(!window.speechSynthesis){ btn.textContent = '낭독 불가'; return; }
+    if(window.speechSynthesis.speaking){ stopSpeech(); return; }
+    var was = AUD.on; AUD.on = true;              // 다시 듣기는 스위치와 무관
+    btn.classList.add('on');
+    say(speechText(currentPanel), {interrupt:true, rate:0.98});
+    AUD.on = was;
+    setTimeout(function(){
+      if(!window.speechSynthesis.speaking) btn.classList.remove('on');
+    }, 400);
+  }
+
+  /* ---------- 패널 열고 닫기 ---------- */
+  function openPanel(key){
+    if(key === 'void'){ openVoid(); return; }
+    currentPanel = key;
+    document.getElementById('panelInner').innerHTML = panelContent(key);
+    document.getElementById('sysPanel').classList.add('active');
+    inPanel = true;
+
+    var sb = document.getElementById('speakBtn');
+    sb.hidden = !SPEAKABLE[key];
+    sb.classList.remove('on');
+    sb.textContent = '낭독';
+
+    if(key === 'hold') wireHold();
+    if(key === 'shield') wireShield();
+    if(key === 'ledger') wireLedger();
+    if(key === 'gazer') wireGazer();
+
+    // 자동 낭독은 하지 않는다. 필요하면 상단 '낭독' 버튼을 누른다.
+  }
+
+  function wireLedger(){
+    var body = document.getElementById('ledgerBody');
+    body.innerHTML = ledgerBody('d');
+    Array.prototype.forEach.call(document.querySelectorAll('#ledgerTabs .tab'), function(tab){
+      tab.addEventListener('click', function(){
+        Array.prototype.forEach.call(document.querySelectorAll('#ledgerTabs .tab'), function(t){ t.classList.remove('on'); });
+        tab.classList.add('on');
+        body.innerHTML = ledgerBody(tab.getAttribute('data-t'));
+      });
+    });
+  }
+
+  function wireShield(){
+    buildToggleList(document.getElementById('pViewList'), VIEW_LAYERS, S.blocked, function(l){
+      return '<div class="flt-meta"><b>'+won(l.cost)+'</b>/일<br>시야 −'+l.vision+'</div>';
+    });
+    buildToggleList(document.getElementById('pExpList'), EXPOSE, S.expose, function(e){
+      return '<div class="flt-meta">결정도 <b>+'+e.dec.toFixed(2)+'</b><br>'+e.fee+'만원/년</div>';
+    });
+  }
+
+  function buildToggleList(host, items, store, metaFn){
+    host.innerHTML = '';
+    items.forEach(function(it){
+      var row = document.createElement('div');
+      row.className = 'flt-row' + (store[it.key] ? ' on' : '');
+      row.setAttribute('tabindex','0');
+      row.setAttribute('role','switch');
+      row.innerHTML = '<div class="sw"></div><div class="flt-main"><div class="flt-name">'+it.name+'</div>' +
+                      '<div class="flt-desc">'+it.desc+'</div></div>' + metaFn(it);
+      function toggle(){
+        store[it.key] = !store[it.key];
+        row.classList.toggle('on', !!store[it.key]);
+        stopSpeech();
+        paintHud();
+        refreshMenuValues();
+        // 상단 요약 3열도 갱신
+        var again = panelContent('shield');
+        var tmp = document.createElement('div'); tmp.innerHTML = again;
+        var newCols = tmp.querySelector('.contract-cols');
+        var oldCols = document.querySelector('#panelInner .contract-cols');
+        if(newCols && oldCols) oldCols.innerHTML = newCols.innerHTML;
+      }
+      row.addEventListener('click', toggle);
+      row.addEventListener('keydown', function(e){ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); toggle(); } });
+      host.appendChild(row);
+    });
+  }
+
+  function wireHold(){
+    var range = document.getElementById('holdRange');
+    var amt = document.getElementById('holdAmt');
+    var dec = document.getElementById('holdDec');
+    var pct = document.getElementById('holdPct');
+    var warn = document.getElementById('holdWarn');
+    var baseDec = decidedness(), baseFee = holdFee();
+    function update(){
+      var t = range.value/100;
+      var d = DEC_BASE + (baseDec - DEC_BASE) * t;
+      var f = baseFee * t;
+      dec.innerHTML = d.toFixed(2) + '<small>현재 결정도 · ' + bandOf(d).name + '</small>';
+      amt.textContent = manwon(f) + ' / 년';
+      pct.textContent = range.value + '%';
+      warn.style.opacity = d < 0.32 ? '1' : '0';
+    }
+    range.addEventListener('input', update);
+    update();
+  }
+
+  function closePanel(){
+    stopSpeech();
+    killGazer();
+    document.getElementById('speakBtn').hidden = true;
+    document.getElementById('sysPanel').classList.remove('active');
+    inPanel = false;
+    currentPanel = null;
+    refreshMenuValues();
+  }
+
+  function openVoid(){
+    exitToWorldImmediate();
+    var f = document.getElementById('mirrorFlashFull');
+    f.classList.remove('hidden');
+    var handler = function(){ f.classList.add('hidden'); f.removeEventListener('click', handler); };
+    f.addEventListener('click', handler);
+  }
+
+  function systemBriefing(){
+    var lines = [
+      '눈 감음. 과금이 정지되었습니다.',
+      '오늘 관측세 ' + spWon(S.spent) + '. 차단으로 아낀 금액 ' + spWon(S.saved) + '.',
+      S.budgetDaily
+        ? '오늘 남은 응시 ' + spPct(leftoverPct()) + '. 이번 달 남은 응시 ' + spPct(monthLeftoverPct()) + '.'
+        : '응시 예산은 설정되어 있지 않습니다.',
+      '시야 완성도 ' + spPct(visionPct()) + '. 결정도 ' + decidedness().toFixed(2) + '.',
+      S.forced ? '예산을 초과하여 전면 블러 처리 중입니다.' : '',
+      '메뉴 ' + (sysItems.length-1) + '개. 위아래 방향키로 옮기고 엔터로 여십시오. 첫 항목, ' +
+        sysItems[0].label + ', ' + sysItems[0].sub + '.',
+      '나가시려면 눈을 뜨십시오. 뜨는 즉시 과금이 재개됩니다.'
+    ].filter(Boolean);
+    say(lines.join(' '), {interrupt:true});
+  }
+
+  function sayFocused(){
+    var it = sysItems[focusIndex];
+    if(!it || it.key === 'void'){ say('빈 항목.', {interrupt:true}); return; }
+    say(it.label + '. ' + it.sub + '. ' + (it.val ? it.val() : ''), {interrupt:true});
+  }
+
+  function enterSystem(){
+    inSystem = true;
+    focusIndex = 0;
+    updateFocus();
+    refreshMenuValues();
+    document.getElementById('world').classList.add('dimmed');
+    document.getElementById('system').classList.add('active');
+  }
+
+  function exitToWorldImmediate(){
+    inSystem = false; inPanel = false; closing = false;
+    document.getElementById('closeProgress').style.setProperty('--p','150%');
+    document.getElementById('world').classList.remove('dimmed');
+    document.getElementById('system').classList.remove('active');
+    closePanel();
+  }
+
+  var pressCount = 0;
+  function startClosing(){
+    if(inSystem || closing) return;
+    closing = true; pressCount = 0;
+    closeStart = performance.now();
+    (function step(){
+      if(!closing) return;
+      var t = Math.min(1, (performance.now()-closeStart)/HOLD_MS);
+      pressCount = countDown(t, pressCount);
+      document.getElementById('closeProgress').style.setProperty('--p', (150 - t*150)+'%');
+      if(t >= 1){
+        closing = false;
+        document.getElementById('closeProgress').style.setProperty('--p','150%');
+        enterSystem();
+        return;
+      }
+      closeTimer = requestAnimationFrame(step);
+    })();
+  }
+
+  function cancelClosing(){
+    closing = false; pressCount = 0; shutUp();
+    if(closeTimer) cancelAnimationFrame(closeTimer);
+    document.getElementById('closeProgress').style.setProperty('--p','150%');
+  }
+
+  // t(0..1) 진행도를 THREE, TWO, ONE 으로 읽어준다
+  function countDown(t, last){
+    var remain = Math.max(1, Math.ceil((1-t)*3));
+    if(remain !== last){ say(['','One','Two','Three'][remain], {interrupt:true, rate:1.12, lang:'en', blip:false}); return remain; }
+    return last;
+  }
+
+  function setVignette(p){
+    document.getElementById('closeProgress').style.setProperty('--p', p+'%');
+  }
+
+  /* ---------- 카메라: 감음 = SYSTEM, 뜸 = WORLD ---------- */
+  var eyeShutStart = 0, eyeOpenStart = 0, chipTick = 0, eyeCount = 0;
+
+  function eyeLoop(){
+    var E = eye();
+    if(E.active){
+      var shut = E.closed && E.face;
+
+      if(shut && !inSystem){
+        if(!eyeShutStart){ eyeShutStart = performance.now(); eyeCount = 0; }
+        var t = Math.min(1, (performance.now()-eyeShutStart)/EYE_HOLD_MS);
+        setVignette(150 - t*150);
+        eyeCount = countDown(t, eyeCount);
+        if(t >= 1){ eyeShutStart = 0; eyeCount = 0; setVignette(150); enterSystem(); }
+      } else if(!shut){
+        if(eyeShutStart){ eyeShutStart = 0; eyeCount = 0; setVignette(150); }
+        // 패널을 읽는 동안은 눈을 떠도 유지된다 (읽으려면 봐야 하므로)
+        if(inSystem && !inPanel){
+          if(!eyeOpenStart) eyeOpenStart = performance.now();
+          if(performance.now()-eyeOpenStart > 600){ eyeOpenStart = 0; exitToWorldImmediate(); }
+        } else { eyeOpenStart = 0; }
+      } else { eyeOpenStart = 0; }
+
+      if(performance.now() - chipTick > 120){
+        chipTick = performance.now();
+        var chip = document.getElementById('camChip');
+        var lbl = document.getElementById('camLbl');
+        var bar = document.getElementById('camBar');
+        if(chip && !chip.hidden){
+          chip.classList.toggle('shut', shut);
+          chip.classList.toggle('open', !shut && E.face);
+          lbl.textContent = !E.face ? '얼굴 없음' : (shut ? '눈 감음 · 과금 정지' : '눈 뜸 · 과금 중');
+          bar.style.width = Math.round(Math.min(1, E.score)*100) + '%';
+        }
+      }
+    }
+    requestAnimationFrame(eyeLoop);
+  }
+
+  /* =========================================================
+     초기화
+     ========================================================= */
+  function initExperience(){
+    buildCity();
+    buildMenu();
+
+    // 오늘 하루 중 이미 지난 분량을 시드로 (오후로 가정)
+    S.spent = Math.round(dailyProjTax() * 0.34);
+    S.saved = Math.round(dailyProjSaved() * 0.34);
+    S.passed = 22; S.blockedCount = Math.round(22 * (dailyProjSaved()/FULL_DAILY || 0));
+    if(S.budgetDaily && S.spent >= S.budgetDaily) S.forced = true;
+    paintHud();
+
+    var world = document.getElementById('world');
+    showAudChip();
+    if(eye().active) showChip();
+    if(eye().active){
+      document.getElementById('worldHint').textContent = '눈을 감으면 SYSTEM이 열립니다';
+      eyeLoop();
+    }
+    setTimeout(function(){ document.getElementById('worldHint').classList.add('faded'); }, 5200);
+    setTimeout(function(){ document.getElementById('cornerBrand').classList.add('faded'); }, 3600);
+
+    var pressing = false;
+    world.addEventListener('pointerdown', function(){ pressing = true; startClosing(); });
+    window.addEventListener('pointerup', function(){ if(pressing){ pressing=false; if(closing) cancelClosing(); } });
+    world.addEventListener('pointerleave', function(){ if(pressing && closing){ cancelClosing(); pressing=false; } });
+
+    document.getElementById('system').addEventListener('click', function(e){
+      if(e.target.id === 'system'){ exitToWorldImmediate(); }
+    });
+    document.getElementById('sysPanel').addEventListener('click', function(e){
+      if(e.target.id === 'sysPanel'){ closePanel(); }
+    });
+    document.getElementById('panelBack').addEventListener('click', closePanel);
+    document.getElementById('speakBtn').addEventListener('click', function(e){ e.stopPropagation(); toggleSpeech(); });
+
+    window.addEventListener('keydown', function(e){
+      if(e.key === 'Escape'){
+        if(inPanel){ closePanel(); } else if(inSystem){ exitToWorldImmediate(); }
+        return;
+      }
+      if(!inSystem) return;
+      if(e.key === ' '){                       // 눈 감은 채로 다시 듣기
+        e.preventDefault();
+        if(inPanel) say(speechText(currentPanel), {interrupt:true});
+        else systemBriefing();
+        return;
+      }
+      if(inPanel) return;
+      if(e.key === 'ArrowDown'){ focusIndex = (focusIndex+1)%sysItems.length; updateFocus(); sayFocused(); e.preventDefault(); }
+      else if(e.key === 'ArrowUp'){ focusIndex = (focusIndex-1+sysItems.length)%sysItems.length; updateFocus(); sayFocused(); e.preventDefault(); }
+      else if(e.key === 'Enter'){ openPanel(sysItems[focusIndex].key); }
+    });
+
+    // 피응시 신호 — 노출 필터가 반영됨
+    (function pulseGaze(){
+      var side = Math.random() > 0.5 ? 'right' : 'left';
+      var el = document.getElementById(side === 'right' ? 'gazeRight' : 'gazeLeft');
+      var label = document.getElementById(side === 'right' ? 'gazeLabelRight' : 'gazeLabelLeft');
+      var shapeOn = S.expose.shape;
+      label.textContent = '피응시 · ' + (side==='right'?'우측':'좌측') + ' · ' +
+        (shapeOn ? '결정도 ' + decidedness().toFixed(2) + ' 반영됨' : '형태 차단됨');
+      el.classList.add('on'); label.classList.add('on');
+      setTimeout(function(){ el.classList.remove('on'); label.classList.remove('on'); }, 2600);
+      setTimeout(pulseGaze, 4000 + Math.random()*5000);
+    })();
+
+    // 지나가는 것들
+    (function loop(){
+      var E = eye();
+      var shut = E.active && E.closed && E.face;
+      if(!inSystem && !shut) spawnEntity();
+      setTimeout(loop, 1200 + Math.random()*1400);
+    })();
+  }
+
+  start();
+})();
+</script>
+</body>
+</html>
