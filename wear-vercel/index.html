@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>WEAR — In-Sight OS</title>
 <meta name="description" content="관측세의 시대를 위한 AI 아이웨어, WEAR의 In-Sight OS 인터랙티브 프로토타입" />
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Archivo+Narrow:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -54,7 +55,7 @@
 html,body{
   margin:0; padding:0; height:100%; background:var(--bg); color:var(--text);
   font-family:var(--sans); overflow:hidden; user-select:none;
-  -webkit-user-select:none;
+  overscroll-behavior:none; -webkit-user-select:none;
 }
 #app{ position:fixed; top:0; right:0; bottom:0; left:0; }
 
@@ -64,6 +65,31 @@ html,body{
 .voice-line.dim{ color:var(--muted); font-size:14px; font-weight:400; line-height:1.7; letter-spacing:0; }
 @keyframes riseIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
 .micro{ font-size:11.5px; color:var(--dim); text-align:center; margin-top:26px; max-width:630px; margin-left:auto; margin-right:auto; line-height:1.7; }
+/* 손 조작 안내 */
+.hg{ max-width:75vw; margin:34px auto 0; text-align:left; display:flex; flex-direction:column; gap:2px; }
+.hg-row{ display:flex; align-items:center; gap:20px; padding:20px 4px; border-bottom:1px solid var(--line); }
+.hg-row:last-child{ border-bottom:none; }
+.hg-ic{ flex:none; width:64px; height:56px; display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--line2); }
+.hg-tx b{ display:block; font-size:14px; font-weight:600; color:var(--text); letter-spacing:-.01em; }
+.hg-svg{ width:30px; height:30px; color:var(--amber); display:block; }
+.hg-alt{ font-family:var(--eng); font-size:10px; font-weight:700; letter-spacing:.22em; color:var(--faint); }
+/* 커서 아이콘 — 점+링이 은은히 움직인다 */
+.hg-cursor{ position:relative; width:30px; height:30px; }
+.hg-cursor i{ position:absolute; left:50%; top:50%; width:7px; height:7px; margin:-3.5px 0 0 -3.5px;
+  border-radius:50%; background:var(--amber); box-shadow:0 0 8px 1px rgba(205,67,44,.5);
+  animation:hgFloat 2s ease-in-out infinite; }
+.hg-cursor::after{ content:''; position:absolute; left:50%; top:50%; width:26px; height:26px; margin:-13px 0 0 -13px;
+  border:1px solid rgba(205,67,44,.45); border-radius:50%; }
+@keyframes hgFloat{ 0%,100%{ transform:translate(-3px,-2px); } 50%{ transform:translate(3px,2px); } }
+/* 주먹 아이콘 — 네 손가락이 접혔다 폈다 */
+.hg-fist{ display:flex; gap:2.5px; align-items:flex-end; height:26px; }
+.hg-fist i{ width:4px; background:var(--amber); opacity:.85; border-radius:2px 2px 0 0;
+  height:22px; animation:hgFold 1.8s ease-in-out infinite; }
+.hg-fist i:nth-child(2){ animation-delay:.08s; } .hg-fist i:nth-child(3){ animation-delay:.16s; }
+.hg-fist i:nth-child(4){ animation-delay:.24s; }
+@keyframes hgFold{ 0%,100%{ height:22px; } 45%,70%{ height:8px; } }
+@media (max-width:560px){ .hg-row{ gap:14px; padding:16px 2px; } .hg-ic{ width:52px; height:48px; } }
 .ghost-btn{
   display:block; margin:34px auto 0; background:transparent; border:1px solid currentColor;
   color:var(--text); font-family:var(--sans); font-size:13px; padding:10px 26px; border-radius:999px;
@@ -74,11 +100,26 @@ html,body{
 .ghost-btn.reject{ color:var(--muted); }
 .ghost-btn:disabled{ opacity:.3; cursor:default; color:var(--muted); }
 .ghost-btn:disabled:hover{ color:var(--muted); }
+/* 끄덕임/음성으로 조작하는 CTA — 안내 중이면 테두리가 맥동한다 */
+.ghost-btn.await{ animation:ctaAwait 1.9s ease-in-out infinite; }
+@keyframes ctaAwait{ 0%,100%{ box-shadow:0 0 0 0 rgba(205,67,44,0); } 50%{ box-shadow:0 0 0 3px rgba(205,67,44,.16); } }
+.cta-hint{ display:flex; align-items:center; justify-content:center; gap:9px;
+  margin:14px auto 0; font-size:11.5px; color:var(--dim); letter-spacing:.01em;
+  opacity:0; transition:opacity .3s ease; pointer-events:none; }
+.cta-hint.show{ opacity:1; }
+.cta-hint .k{ font-family:var(--eng); font-size:9px; font-weight:700; letter-spacing:.16em;
+  color:var(--muted); border:1px solid var(--line2); padding:3px 7px; }
+.cta-hint .nod i{ display:inline-block; animation:nodBob 1.4s ease-in-out infinite; }
+@keyframes nodBob{ 0%,100%{ transform:translateY(-1px); } 50%{ transform:translateY(2px); } }
+.cta-hint .sep{ color:var(--faint); }
+.cta-hint .shake i{ display:inline-block; animation:shakeWag 1.2s ease-in-out infinite; }
+@keyframes shakeWag{ 0%,100%{ transform:translateX(-2px); } 50%{ transform:translateX(2px); } }
+.vc-chip.listening .lbl{ color:var(--amber); }
 .amount{ font-family:var(--mono); color:var(--amber); font-size:38px; text-align:center; margin:18px 0 6px; font-weight:500; }
 
 /* ---------- onboarding ---------- */
 #onboarding{
-  position:absolute; top:0; right:0; bottom:0; left:0; overflow-y:auto;
+  position:absolute; top:0; right:0; bottom:0; left:0; overflow:hidden;
   background:var(--bg); transition:opacity .6s ease; text-align:center; white-space:nowrap;
 }
 #onboarding::before{
@@ -87,19 +128,26 @@ html,body{
 #onboarding.fade-out{ opacity:0; pointer-events:none; }
 #ob-content{
   display:inline-block; vertical-align:middle; white-space:normal; text-align:center;
-  width:100%; max-width:1080px; padding:44px 19px;
+  width:100%; max-width:75vw; padding:44px 10px;
 }
 .breathe-dot{ width:6px; height:6px; border-radius:50%; background:var(--amber); margin:0 auto 40px; box-shadow:0 0 0 0 rgba(205,67,44,.4); animation:breathe 2.6s ease-in-out infinite; }
 @keyframes breathe{ 0%,100%{ box-shadow:0 0 0 0 rgba(205,67,44,.35);} 50%{ box-shadow:0 0 0 22px rgba(205,67,44,0);} }
 .case-illust{ width:210px; height:78px; border:1.4px solid var(--faint); border-radius:39px; margin:0 auto 34px; position:relative; }
 .case-illust::before{ content:''; position:absolute; left:16px; right:16px; top:50%; height:1px; background:var(--faint); opacity:.5; }
 .case-illust::after{ content:''; position:absolute; right:22px; top:50%; width:6px; height:6px; margin-top:-3px; border-radius:50%; background:var(--amber); box-shadow:0 0 0 8px rgba(205,67,44,.14); }
-.invoice{ max-width:570px; margin:20px auto 0; }
+.invoice{ max-width:75vw; margin:20px auto 0; }
 .invoice-row{ display:flex; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--line); font-size:13px; }
 .invoice-row span:first-child{ color:var(--muted); }
 .invoice-row span:last-child{ font-family:var(--mono); color:var(--text); font-size:15px; }
+.invoice-row.hl{ border-bottom:none; padding-top:18px; align-items:baseline; }
+.invoice-row.hl span:first-child{ color:var(--text); font-size:14px; font-weight:600; }
+.invoice-row.hl span:last-child{ font-family:var(--eng); font-feature-settings:'tnum' 1;
+  color:var(--amber); font-size:30px; font-weight:700; letter-spacing:-.01em; line-height:1; }
+.invoice-row.hl span:last-child em{ font-style:normal; font-size:13px; font-weight:600; margin-left:7px; opacity:.8; }
+.invoice-note{ text-align:right; font-size:11.5px; color:var(--amber); margin:6px 0 4px; letter-spacing:.01em; }
+.invoice-div{ height:1px; background:var(--line2); margin:10px 0 2px; }
 /* ---------- 결정도 — 계측 레일 ---------- */
-.dcx{ max-width:900px; margin:32px auto 0; text-align:left; }
+.dcx{ max-width:75vw; margin:32px auto 0; text-align:left; }
 
 .dcx-big{ display:flex; align-items:flex-end; gap:16px; margin:26px 0 4px; }
 .dcx-val{ font-family:var(--eng); font-weight:700; font-size:clamp(64px,15vw,116px);
@@ -153,7 +201,7 @@ html,body{
   .dcx-mark b{ font-size:11px; padding:2px 5px; }
 }
 
-.profile-form{ max-width:690px; margin:30px auto 0; text-align:center; }
+.profile-form{ max-width:75vw; margin:30px auto 0; text-align:center; }
 .field{ margin-bottom:22px; }
 .field-label{ font-size:11px; color:var(--dim); margin-bottom:10px; letter-spacing:.03em; text-align:center; }
 .chips{ font-size:0; text-align:center; }
@@ -166,9 +214,13 @@ html,body{
 .chip:hover{ color:var(--text); }
 .chip.on{ color:var(--amber); background:rgba(205,67,44,.10); }
 .chip:focus-visible{ outline:1px solid var(--amber); outline-offset:2px; }
+/* 한 페이지에 질문 하나만 있을 때 — 크게 */
+.profile-form.solo{ max-width:75vw; margin-top:44px; }
+.chips.lg .chip{ font-size:16px; padding:15px 32px; margin:0 5px 12px; }
+@media (max-width:560px){ .chips.lg .chip{ font-size:14.5px; padding:13px 24px; } }
 
 /* ---------- 예산 슬라이더 ---------- */
-.bd-wrap{ max-width:630px; margin:36px auto 0; }
+.bd-wrap{ max-width:75vw; margin:36px auto 0; }
 .bd-amount{ font-family:var(--eng); font-weight:700; font-size:46px; line-height:1.05; letter-spacing:-.01em;
   color:var(--amber); text-align:center; transition:color .2s, font-size .2s; }
 .bd-amount.off{ color:var(--muted); font-size:30px; }
@@ -187,24 +239,69 @@ html,body{
 .bd-range:active::-webkit-slider-thumb{ transform:scale(1.25); }
 .bd-range:focus-visible{ outline:1px solid var(--amber); outline-offset:6px; }
 .bd-range:disabled{ opacity:.22; cursor:default; }
-.bd-scale{ display:flex; justify-content:space-between; font-family:var(--eng); font-size:10px;
-  color:var(--dim); margin-top:6px; letter-spacing:.02em; }
-.bd-nolimit{
-  display:block; margin:28px auto 0; background:transparent; border:none;
-  border-bottom:1px solid var(--line2); color:var(--dim); font-family:var(--sans);
-  font-size:11.5px; padding:5px 2px; cursor:pointer; letter-spacing:.02em;
-  transition:color .18s, border-color .18s;
+/* 슬라이더 눈금 — 정중앙이 동일 조건 평균, 맨 오른쪽이 무제한 */
+.bd-track{ position:relative; }
+.bd-avgtick{ position:absolute; left:50%; top:47px; margin-left:-.5px; width:1px; height:9px;
+  background:var(--line2); pointer-events:none; }
+.bd-marks{ position:relative; height:15px; margin-top:6px; font-family:var(--eng);
+  font-size:9.5px; letter-spacing:.06em; color:var(--dim); }
+.bd-marks span{ position:absolute; white-space:nowrap; }
+.bd-marks .l{ left:0; }
+.bd-marks .r{ right:0; }
+.bd-marks .c{ left:50%; transform:translateX(-50%); }
+.bd-marks .c b{ color:var(--muted); font-weight:700; }
+.bd-marks .r.on{ color:var(--amber); }
+
+/* 블러 처리 예시 */
+.bd-demo-lead{ display:flex; justify-content:center; margin:16px 0 28px; }
+.bd-demo-btn{
+  display:inline-block; background:transparent; border:1px solid var(--line2);
+  color:var(--muted); font-family:var(--sans); font-size:11.5px; padding:8px 16px;
+  border-radius:999px; cursor:pointer; letter-spacing:.02em; transition:color .18s, border-color .18s;
 }
-.bd-nolimit:hover{ color:var(--muted); }
-.bd-nolimit.on{ color:var(--amber); border-color:var(--amber); }
-.bd-nolimit:focus-visible{ outline:1px solid var(--amber); outline-offset:3px; }
+.bd-demo-btn:hover{ color:var(--amber); border-color:var(--amber-dim); }
+.bd-demo-btn:focus-visible{ outline:1px solid var(--amber); outline-offset:3px; }
+/* 블러 예시 팝업 */
+.bd-modal{ position:fixed; inset:0; z-index:80; display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,.72); backdrop-filter:blur(2px); }
+.bd-modal[hidden]{ display:none; }
+.bd-modal-panel{ position:relative; width:min(90vw,480px); background:var(--bg);
+  border:1px solid var(--line2); padding:44px 26px 26px; }
+.bd-modal-x{ position:absolute; top:10px; right:12px; width:32px; height:32px; line-height:1;
+  background:transparent; border:none; color:var(--muted); font-size:24px; cursor:pointer;
+  transition:color .18s; }
+.bd-modal-x:hover{ color:var(--amber); }
+.bd-modal-x:focus-visible{ outline:1px solid var(--amber); outline-offset:2px; }
+.bd-demo{ margin:0 auto; }
+.bd-demo-stage{ position:relative; aspect-ratio:16/10; background:#0E0F0D;
+  border:1px solid var(--line2); overflow:hidden; }
+.bd-demo-obj{ position:absolute; transition:filter .45s ease; }
+.bd-demo-sign{ left:7%; top:14%; width:40%; height:26%; border:1px solid var(--amber-dim);
+  background:rgba(205,67,44,.10); display:flex; align-items:center; justify-content:center;
+  font-family:var(--eng); font-size:13px; font-weight:700; color:var(--amber); letter-spacing:.04em; }
+.bd-demo-face{ border-radius:50%; background:#2E302C; border:1px solid var(--line2); }
+.bd-demo-f1{ left:14%; bottom:9%; width:19%; aspect-ratio:1; }
+.bd-demo-f2{ left:39%; bottom:5%; width:23%; aspect-ratio:1; }
+.bd-demo-logo{ right:8%; top:22%; width:22%; height:16%; border:1px solid var(--line2);
+  display:flex; align-items:center; justify-content:center; font-family:var(--eng);
+  font-size:10px; letter-spacing:.2em; color:var(--muted); }
+.bd-demo-price{ right:9%; bottom:14%; font-family:var(--eng); font-size:15px; font-weight:700; color:var(--text); }
+.bd-demo.blurred .bd-demo-obj{ filter:blur(9px); }
+.bd-demo-stamp{ position:absolute; left:10px; bottom:9px; font-family:var(--eng); font-size:9px;
+  letter-spacing:.2em; color:var(--dim); }
+.bd-demo.blurred .bd-demo-stamp{ color:var(--rust); }
+.bd-demo-sw{ display:flex; gap:0; margin-top:10px; border:1px solid var(--line2); }
+.bd-demo-sw button{ flex:1; background:transparent; border:none; color:var(--dim);
+  font-family:var(--sans); font-size:11px; padding:8px 0; cursor:pointer; transition:color .18s, background .18s; }
+.bd-demo-sw button.on{ color:var(--amber); background:rgba(205,67,44,.10); }
+.bd-demo-cap{ font-size:11px; color:var(--dim); text-align:center; margin-top:9px; line-height:1.7; }
 
 #mirrorFlashFull{ position:fixed; top:0; right:0; bottom:0; left:0; background:linear-gradient(120deg,#161616 0%, #000000 38%, #454545 52%, #000000 66%, #000000 100%); z-index:60; display:flex; align-items:flex-end; justify-content:center; cursor:pointer; }
 #mirrorFlashFull.hidden{ display:none; }
 #mirrorFlashFull span{ font-size:10px; color:rgba(255,255,255,.25); margin-bottom:26px; letter-spacing:.05em; }
 
 /* ---------- filter setup (onboarding + SHIELD) ---------- */
-.flt-wrap{ max-width:840px; margin:26px auto 0; text-align:left; }
+.flt-wrap{ max-width:75vw; margin:26px auto 0; text-align:left; }
 .flt-group-label{ font-size:10.5px; color:var(--dim); letter-spacing:.04em; margin:22px 0 8px; }
 .flt-list{ border-top:1px solid var(--line); }
 .flt-row{
@@ -227,24 +324,55 @@ html,body{
 .flt-row.locked:hover{ background:transparent; }
 
 /* ---------- 필터 스테이지 — 명세표 ---------- */
-.vfx{ max-width:900px; margin:36px auto 0; text-align:left; }
+.vfx{ max-width:75vw; margin:36px auto 0; text-align:left; }
 
 .vfx-head{ display:flex; align-items:center; gap:12px; }
 .vfx-kicker{ font-family:var(--eng); font-size:10px; font-weight:600; letter-spacing:.28em;
   color:var(--dim); white-space:nowrap; }
 .vfx-rule{ flex:1; height:1px; background:var(--line2); }
 
-/* 시야 포인트 스트립 — 차단하면 그만큼 물리적으로 꺼진다 */
-.vfx-strip{ display:flex; gap:1.5px; margin:18px 0 8px; height:28px; align-items:flex-end; }
-.vfx-strip i{ flex:1; height:100%; background:var(--amber); opacity:.8;
-  transform-origin:bottom; transition:transform .34s cubic-bezier(.2,.8,.2,1), background .3s ease, opacity .3s ease; }
-.vfx-strip i.out{ background:var(--line2); opacity:1; transform:scaleY(.28); }
-.vfx-strip i.base{ opacity:.2; }            /* 필터로 걷어낼 수 없는 고정 시야 */
-.vfx-strip i.edge{ margin-right:8px; }
-.vfx-strip i.hl{ background:var(--text); opacity:1; }
-.vfx-striplabel{ display:flex; justify-content:space-between; font-family:var(--eng);
-  font-size:9.5px; letter-spacing:.2em; color:var(--dim); }
-.vfx-striplabel b{ font-weight:700; color:var(--text); }
+/* 시야 막대 — 폭이 곧 시야 기여도(pt). 차단하면 그 폭이 실제로 사라진다. */
+.vfx-bar{ display:flex; width:100%; height:38px; margin:18px 0 9px;
+  border:1px solid var(--line2); overflow:hidden;
+  background:repeating-linear-gradient(45deg, transparent 0 5px, rgba(255,255,255,.04) 5px 10px); }
+.vfx-bar i{ display:flex; align-items:center; justify-content:center; height:100%;
+  overflow:hidden; white-space:nowrap; font-family:var(--sans); font-size:9.5px; font-weight:700;
+  color:#16100D; background:var(--amber); opacity:.88; border-right:1px solid rgba(0,0,0,.5);
+  transition:width .38s cubic-bezier(.2,.8,.2,1), opacity .28s ease, background .2s ease; }
+.vfx-bar i.fixed{ background:var(--line2); color:var(--muted); opacity:1; }
+.vfx-bar i.hl{ background:var(--text); opacity:1; }
+.vfx-bar i.out{ width:0 !important; opacity:0; border-right-width:0; }
+.vfx-barlabel{ display:flex; justify-content:space-between; align-items:baseline; gap:12px;
+  font-size:10.5px; color:var(--dim); letter-spacing:.01em; }
+.vfx-barlabel b{ font-family:var(--eng); font-feature-settings:'tnum' 1;
+  font-weight:700; color:var(--text); font-size:12px; margin-left:4px; }
+.vfx-barlabel .r{ text-align:right; }
+
+/* 노출 차단 구독 플랜 */
+.plan-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:26px 0 0; }
+.plan{ display:flex; flex-direction:column; text-align:left; padding:20px 18px 20px;
+  border:1px solid var(--line2); background:transparent; color:inherit; font:inherit;
+  cursor:pointer; transition:border-color .2s, background .2s; }
+.plan:hover{ border-color:var(--dim); }
+.plan.on{ border-color:var(--amber); background:rgba(205,67,44,.07); }
+.plan:focus-visible{ outline:1px solid var(--amber); outline-offset:2px; }
+.plan-name{ font-family:var(--eng); font-size:10px; font-weight:700; letter-spacing:.26em; color:var(--dim); }
+.plan.on .plan-name{ color:var(--amber); }
+.plan-ko{ font-size:14px; font-weight:600; color:var(--text); margin-top:9px; letter-spacing:-.01em; }
+.plan-price{ font-family:var(--eng); font-feature-settings:'tnum' 1; font-size:25px; font-weight:700;
+  color:var(--text); margin-top:11px; letter-spacing:-.01em; line-height:1; }
+.plan.on .plan-price{ color:var(--amber); }
+.plan-price small{ font-size:11px; font-weight:400; color:var(--dim); margin-left:5px; letter-spacing:0; }
+.plan-desc{ font-size:11.5px; color:var(--muted); line-height:1.75; margin-top:13px; }
+.plan-list{ margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
+.plan-list div{ font-size:11px; color:var(--muted); line-height:1.95; }
+.plan-list div.no{ color:var(--faint); text-decoration:line-through; text-decoration-color:var(--line2); }
+.plan-list div i{ font-style:normal; display:inline-block; width:11px; color:var(--amber); }
+.plan-list div.no i{ color:var(--line2); }
+.plan-foot{ margin-top:auto; padding-top:16px; font-family:var(--eng); font-size:9.5px;
+  letter-spacing:.18em; color:var(--faint); }
+.plan.on .plan-foot{ color:var(--amber); }
+@media (max-width:760px){ .plan-grid{ grid-template-columns:1fr; } }
 
 .vfx-list{ margin-top:26px; border-top:1px solid var(--line2); }
 .vfx-list + .vfx-sublabel{ margin-top:26px; }
@@ -313,9 +441,8 @@ html,body{
   .vfx-num b{ font-size:15px; }
   .vfx-row{ gap:11px; padding:14px 4px 13px; }
   .vfx-cell{ padding:0 7px; }
-  .vfx-strip{ gap:1px; height:24px; }
-  .vfx-strip i.edge{ margin-right:5px; }
-  .vfx-striplabel{ font-size:8.5px; letter-spacing:.12em; }
+  .vfx-bar{ height:30px; }
+  .vfx-barlabel{ font-size:9.5px; }
   .vfx-sub{ font-size:10px; }
 }
 
@@ -398,7 +525,7 @@ html,body{
 
 .close-progress{ position:fixed; top:0; right:0; bottom:0; left:0; background:radial-gradient(circle at center, transparent 0%, transparent var(--p,150%), rgba(0,0,0,.94) var(--p,150%)); pointer-events:none; z-index:15; transition:none; }
 
-#system{ position:absolute; top:0; right:0; bottom:0; left:0; overflow-y:auto; text-align:center; white-space:nowrap; background:#000000; opacity:0; pointer-events:none; transition:opacity .35s ease; z-index:20; }
+#system{ position:absolute; top:0; right:0; bottom:0; left:0; overflow:hidden; text-align:center; white-space:nowrap; background:#000000; opacity:0; pointer-events:none; transition:opacity .35s ease; z-index:20; }
 #system::before{ content:''; display:inline-block; height:100%; vertical-align:middle; width:0; }
 #system.active{ opacity:1; pointer-events:auto; }
 #sysMenu{ display:inline-block; vertical-align:middle; white-space:normal; text-align:left; width:100%; max-width:440px; padding:30px; }
@@ -413,7 +540,7 @@ html,body{
 .sys-head{ font-size:10.5px; color:var(--dim); letter-spacing:.04em; margin-bottom:14px; }
 .sys-head b{ font-family:var(--mono); color:var(--muted); font-weight:400; }
 
-#sysPanel{ position:absolute; top:0; right:0; bottom:0; left:0; background:#000000; overflow-y:auto; text-align:center; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .3s ease; }
+#sysPanel{ position:absolute; top:0; right:0; bottom:0; left:0; background:#000000; overflow:hidden; text-align:center; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .3s ease; }
 #sysPanel::before{ content:''; display:inline-block; height:100%; vertical-align:middle; width:0; }
 #sysPanel.active{ opacity:1; pointer-events:auto; }
 .panel-inner{ display:inline-block; vertical-align:middle; white-space:normal; text-align:left; width:100%; max-width:560px; padding:64px 40px 40px; }
@@ -472,7 +599,27 @@ html,body{
 .cam-chip .eb{ width:40px; height:2px; background:var(--line2); position:relative; flex:none; }
 .cam-chip .eb > i{ position:absolute; left:0; top:0; bottom:0; background:var(--amber); width:0%; }
 .cam-chip.off{ opacity:.55; }
+/* 음성 명령 상태 칩 — 온보딩 조작 중에만, 우상단에 조용히 */
+.vc-chip{ left:auto; right:16px; bottom:auto; top:16px; transform:none;
+  padding:6px 12px 6px 10px; }
+.vc-chip .dot{ background:var(--dim); }
+.vc-chip.listening .dot{ background:var(--amber); box-shadow:0 0 0 4px rgba(205,67,44,.16); }
+.vc-chip.listening .lbl{ color:var(--amber); }
+@media (max-width:640px){ .vc-chip{ top:auto; bottom:96px; right:12px; } }
 .cam-chip[hidden], .aud-chip[hidden]{ display:none; }
+
+/* 손 커서 — 검지 끝을 따라다니는 점 + 링 */
+#handCursor{ position:fixed; left:0; top:0; z-index:60; pointer-events:none;
+  transform:translate(-50%,-50%); transition:opacity .2s ease; }
+#handCursor[hidden]{ display:none; }
+#handCursor .hc-dot{ position:absolute; left:0; top:0; width:9px; height:9px; margin:-4.5px 0 0 -4.5px;
+  border-radius:50%; background:var(--amber); box-shadow:0 0 10px 2px rgba(205,67,44,.5); }
+#handCursor .hc-ring{ position:absolute; left:0; top:0; width:34px; height:34px; margin:-17px 0 0 -17px;
+  border:1px solid rgba(205,67,44,.5); border-radius:50%;
+  transition:width .12s, height .12s, margin .12s, border-color .12s; }
+#handCursor.snap .hc-ring{ border-color:var(--amber); box-shadow:0 0 0 3px rgba(205,67,44,.12); }
+#handCursor.pinch .hc-ring{ width:16px; height:16px; margin:-8px 0 0 -8px; border-color:#fff; }
+#handCursor.pinch .hc-dot{ background:#fff; }
 
 .aud-chip{
   position:fixed; left:50%; transform:translateX(-50%); bottom:20px; z-index:31;
@@ -513,7 +660,7 @@ html,body{
 .gather-word{
   position:fixed; top:0; right:0; bottom:0; left:0; z-index:5;
   display:flex; align-items:center; justify-content:center; text-align:center;
-  font-weight:600; font-size:min(9vw, 62px); letter-spacing:.06em; color:var(--text);
+  font-weight:600; font-size:min(4.5vw, 31px); letter-spacing:.06em; color:var(--text);
 }
 .gather-word b{ font-weight:600; opacity:.18; animation:gth 1.5s ease-in-out infinite; }
 @keyframes gth{ 0%,100%{ opacity:.18; } 50%{ opacity:1; } }
@@ -606,8 +753,8 @@ html,body{
 }
 .ob-step-count{ font-family:var(--eng); font-size:9px; letter-spacing:.12em; white-space:nowrap; }
 .ob-dots{ display:flex; align-items:center; gap:5px; }
-.ob-dot{ width:4px; height:4px; border-radius:50%; background:var(--line2); transition:all .25s ease; }
-.ob-dot.on{ width:18px; border-radius:3px; background:var(--amber); }
+.ob-dot{ width:4px; height:4px; border-radius:0; background:var(--line2); transition:all .25s ease; }
+.ob-dot.on{ width:18px; border-radius:0; background:var(--amber); }
 .ob-dot.done{ background:var(--dim); }
 @media (max-width:640px){ .ob-back{ top:14px; left:14px; } .ob-indicator{ top:16px; } }
 
@@ -622,14 +769,20 @@ html,body{
 .dcx-seg.hov u{ color:rgba(0,0,0,.45); }
 
 /* ---------- 이미지 스캔 ---------- */
+/* 데이터가 많은 화면이라 다른 화면(75vw)보다 넓게 쓴다 */
+#ob-content:has(.imx){ max-width:92vw; }
 .imx{ max-width:1980px; margin:4px auto 0; text-align:left; position:relative; }
-.imx-focus{ display:grid; grid-template-columns:minmax(0, 1fr) minmax(300px, 330px); gap:18px; align-items:start; position:relative; }
-.imx-detail{ min-width:0; padding:2px 2px 0 0; position:sticky; top:8px; align-self:start; max-height:calc(100vh - 16px); overflow:hidden; }
+.imx-focus{ display:grid; grid-template-columns:minmax(0, 1fr) minmax(420px, 460px); gap:28px; align-items:start; position:relative; }
+.imx-detail{ min-width:0; padding:2px 2px 0 0; position:relative; align-self:start; max-height:none; overflow:visible; }
 .imx-main{ min-width:0; }
 .imx-detail .imx-era{ margin-top:0; }
 .imx-stage{ position:relative; width:100%; height:clamp(360px, 53vh, 510px); margin:0; }
 .imx-stage canvas{ width:100%; height:100%; display:block; cursor:grab; touch-action:none; }
 .imx-stage canvas:active{ cursor:grabbing; }
+.imx-face{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; cursor:grab; touch-action:none; user-select:none; -webkit-user-drag:none; }
+.imx-model{ position:absolute; inset:0; width:100%; height:100%; background:transparent; --poster-color:transparent; cursor:grab; }
+.imx-stage.spinning{ cursor:grabbing; }
+.imx-stage.spinning .imx-face{ cursor:grabbing; }
 .imx-c{ position:absolute; width:13px; height:13px; border:1px solid var(--line2); pointer-events:none; }
 .imx-c.tl{ left:0; top:0; border-right:none; border-bottom:none; }
 .imx-c.tr{ right:0; top:0; border-left:none; border-bottom:none; }
@@ -717,7 +870,7 @@ html,body{
 .lg-predlab{ position:absolute; right:0; top:20px; font-family:var(--eng); font-size:8.5px;
   font-weight:700; letter-spacing:.24em; color:var(--faint); }
 
-.lg-node{ position:absolute; top:22px; bottom:0; width:58px; margin-left:-29px;
+.lg-node{ position:absolute; top:22px; bottom:0; width:84px; margin-left:-42px;
   background:transparent; border:none; padding:0; cursor:pointer;
   display:flex; flex-direction:column; justify-content:flex-end; align-items:center; }
 .lg-stick{ position:absolute; left:50%; top:0; bottom:52px; width:1px; margin-left:-.5px;
@@ -728,11 +881,11 @@ html,body{
   border-top:1px solid var(--line); transition:border-color .2s ease; }
 .lg-node:hover .lg-lab{ border-top-color:var(--hl2); }
 .lg-node.on .lg-lab{ border-top-color:var(--amber); }
-.lg-lab u{ display:block; font-family:var(--eng); font-size:9px; font-weight:700;
+.lg-lab u{ display:block; font-family:var(--eng); font-size:13.5px; font-weight:700;
   letter-spacing:.04em; color:var(--dim); text-decoration:none; font-feature-settings:'tnum' 1; }
-.lg-lab b{ display:block; font-family:var(--eng); font-size:11px; font-weight:700;
+.lg-lab b{ display:block; font-family:var(--eng); font-size:16.5px; font-weight:700;
   color:var(--muted); margin-top:3px; font-feature-settings:'tnum' 1; }
-.lg-lab s{ display:block; font-size:9.5px; font-weight:600; color:var(--faint);
+.lg-lab s{ display:block; font-size:14.25px; font-weight:600; color:var(--faint);
   margin-top:3px; text-decoration:none; }
 .lg-node.on .lg-lab b{ color:var(--text); }
 .lg-node.on .lg-lab u, .lg-node.on .lg-lab s{ color:var(--amber); }
@@ -740,18 +893,24 @@ html,body{
 .lg-node:focus-visible{ outline:1px solid var(--amber); outline-offset:2px; }
 
 
-.trait-summary{ border-top:1px solid var(--line2); }
-.trait-summary-row{ display:grid; grid-template-columns:54px minmax(0,1fr) auto 58px minmax(0,1fr) 54px; align-items:center; gap:6px; padding:7px 0; border-bottom:1px solid var(--line); }
-.trait-summary-row b{ font-size:11.5px; font-weight:600; color:var(--text); text-align:center; }
-.trait-summary-row em{ font-family:var(--eng); font-size:8px; font-style:normal; letter-spacing:.12em; color:var(--faint); text-align:center; }
-.trait-summary-row .trait-end{ font-size:10px; color:var(--muted); white-space:nowrap; }
-.trait-summary-row .trait-end.left{ text-align:right; }
-.trait-summary-row .trait-end.right{ text-align:left; }
-.trait-summary-row .trait-track{ position:relative; height:2px; background:var(--line2); }
-.trait-summary-row .trait-mid{ position:absolute; left:50%; top:-3px; width:1px; height:8px; background:var(--line2); }
-.trait-summary-row .trait-fill{ position:absolute; top:0; height:2px; background:var(--amber); }
-.trait-summary-row .trait-dot{ position:absolute; top:-3px; width:8px; height:8px; margin-left:-4px; border-radius:50%; background:var(--amber); }
-.trait-summary-row .trait-score{ font-family:var(--eng); font-size:9px; color:var(--amber); font-feature-settings:'tnum' 1; text-align:right; }
+.trait-summary{ border-top:1px solid var(--line2); margin-top:6px; padding-top:4px;
+  display:grid; grid-template-columns:1fr 1fr; column-gap:44px; }
+@media (max-width:560px){ .trait-summary{ grid-template-columns:1fr; column-gap:0; } }
+.trait-read{ padding:16px 0; border-bottom:1px solid var(--line); }
+.trait-read-head{ display:flex; align-items:baseline; gap:10px; }
+.trait-read-head b{ font-size:19px; font-weight:600; color:var(--text); letter-spacing:-.01em; }
+.trait-read-head em{ font-family:var(--eng); font-style:normal; font-size:11px; font-weight:700; letter-spacing:.2em; color:var(--faint); }
+.trait-read-head .lean{ margin-left:auto; font-family:var(--eng); font-feature-settings:'tnum' 1;
+  font-size:18px; color:var(--amber); font-weight:700; letter-spacing:.01em; }
+.trait-read-head .lean.mid{ color:var(--muted); font-weight:400; }
+.trait-meter{ position:relative; height:1px; background:var(--line2); margin:18px 0 14px; }
+.trait-meter .mid{ position:absolute; left:50%; top:-4px; width:1px; height:9px; background:var(--line2); }
+.trait-meter .pin{ position:absolute; top:50%; width:11px; height:11px; margin:-5.5px 0 0 -5.5px;
+  border-radius:50%; background:var(--amber); transition:left .3s ease; }
+.trait-meter .pin.neutral{ background:transparent; border:1px solid var(--muted); }
+.trait-poles{ display:flex; justify-content:space-between; }
+.trait-poles span{ font-size:15px; color:var(--faint); }
+.trait-poles span.on{ color:var(--text); font-weight:600; }
 
 /* ---------- 특성 — 선택 연령대 상세 ---------- */
 .trait-cols{ display:grid; grid-template-columns:1fr; gap:0; }
@@ -781,6 +940,7 @@ html,body{
 
 .imx-era{ margin-top:4px; }
 .imx-era-top{ display:flex; align-items:baseline; gap:12px; }
+.imx-timeline{ margin-top:10px; padding-top:16px; border-top:1px solid var(--line2); }
 .imx-era-name{ font-size:25px; font-weight:600; letter-spacing:-.02em; color:var(--text); line-height:1.1; }
 .imx-era-dec{ font-family:var(--eng); font-weight:700; font-size:15px; color:var(--amber);
   font-feature-settings:'tnum' 1; }
@@ -805,7 +965,7 @@ html,body{
   .rdr-v{ font-size:16px; width:34px; }
   .imx-era-name{ font-size:22px; }
   .lifegraph{ padding-bottom:56px; }
-  .lg-node{ width:52px; margin-left:-26px; }
+  .lg-node{ width:76px; margin-left:-38px; }
   .lg-stick{ bottom:56px; }
   .lg-yl.bot{ bottom:60px; }
   .lg-lab u{ font-size:7.5px; letter-spacing:0; }
@@ -841,7 +1001,7 @@ html,body{
 @media (max-width:560px){
   .imx-stage{ height:clamp(250px,44vh,340px); }
   .lifegraph{ padding-bottom:50px; }
-  .lg-node{ width:48px; margin-left:-24px; }
+  .lg-node{ width:70px; margin-left:-35px; }
   .lg-stick{ bottom:50px; }
   .lg-yl.bot{ bottom:54px; }
 }
@@ -956,18 +1116,28 @@ html,body{
     <span class="aud-wave"><i></i><i></i><i></i><i></i></span>
     <span class="lbl" id="audLbl">음성 안내 켜짐</span>
   </div>
+  <div class="cam-chip vc-chip off" id="vcChip" hidden>
+    <span class="dot"></span><span class="lbl" id="vcLbl">음성 명령 대기</span>
+  </div>
+  <div id="handCursor" hidden><i class="hc-dot"></i><i class="hc-ring"></i></div>
 
   <div id="mirrorFlashFull" class="hidden"><span>탭하여 돌아가기</span></div>
 </div>
 
 <script type="module">
-import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+import { FaceLandmarker, HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
 
 const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
 const MODEL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+const HAND_MODEL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
 
 // 메인 스크립트가 폴링하는 공유 상태
-window.EYE = { supported:true, active:false, ready:false, closed:false, score:0, face:false, error:null };
+window.EYE = { supported:true, active:false, ready:false, closed:false, score:0, face:false, error:null,
+  // 끄덕임: 코끝 y가 아래로 내려갔다 올라오면 nodSeq 가 1 증가한다. 메인이 이 값을 폴링한다.
+  nodSeq:0, shakeSeq:0,
+  // 손: 검지 끝을 커서로. present=손 보임, x/y=정규화 좌표(셀피 미러 반영),
+  // pinch=엄지+검지 붙음, pinchSeq=집는 순간 1 증가(클릭 엣지).
+  hand:{ present:false, x:0.5, y:0.5, pinch:false }, pinchSeq:0, handReady:false };
 
 window.WEAR_startEye = async function(){
   const EYE = window.EYE;
@@ -994,7 +1164,7 @@ window.WEAR_startEye = async function(){
     const fileset = await FilesetResolver.forVisionTasks(WASM);
     const opts = {
       baseOptions:{ modelAssetPath: MODEL, delegate:'GPU' },
-      outputFaceBlendshapes:true, runningMode:'VIDEO', numFaces:1
+      outputFaceBlendshapes:true, outputFacialTransformationMatrixes:false, runningMode:'VIDEO', numFaces:1
     };
     try{ landmarker = await FaceLandmarker.createFromOptions(fileset, opts); }
     catch(e){ opts.baseOptions.delegate = 'CPU'; landmarker = await FaceLandmarker.createFromOptions(fileset, opts); }
@@ -1006,14 +1176,144 @@ window.WEAR_startEye = async function(){
 
   EYE.active = true; EYE.ready = true; EYE.error = null;
 
+  // 손 인식은 선택 사항 — 실패해도 얼굴/끄덕임/음성은 그대로 동작한다.
+  let handLm = null;
+  (async function loadHand(){
+    try{
+      const fs2 = await FilesetResolver.forVisionTasks(WASM);
+      const hopts = {
+        baseOptions:{ modelAssetPath: HAND_MODEL, delegate:'GPU' },
+        runningMode:'VIDEO', numHands:1
+      };
+      try{ handLm = await HandLandmarker.createFromOptions(fs2, hopts); }
+      catch(e){ hopts.baseOptions.delegate = 'CPU'; handLm = await HandLandmarker.createFromOptions(fs2, hopts); }
+      EYE.handReady = true;
+    }catch(err){ EYE.handReady = false; }
+  })();
+
   const SHUT = 0.48, OPEN = 0.32;   // 히스테리시스
   let last = -1, smooth = 0;
+
+  // ── 끄덕임 / 도리도리 감지 ───────────────────────────────
+  // 끄덕임: 코끝(landmark 1)의 세로 위치를 기준선과 비교. 숙였다(DOWN)
+  //   드는(UP) 왕복 1회를 세고, 짧은 시간 안에 2회 모이면 nodSeq++ (다음).
+  // 도리도리: 코끝 가로 위치가 좌↔우로 크게 흔들리면 shakeSeq++ (뒤로).
+  let noseBaseY = null, noseBaseX = null;
+  let nodPhase = 'idle', nodCount = 0, nodFirstAt = 0, nodLockUntil = 0;
+  let shakeDir = 0, shakeTurns = 0, shakeFirstAt = 0, shakeLockUntil = 0;
+  const NOD_DOWN = 0.018, NOD_UP = 0.008;   // 세로 왕복 임계 (화면 비율)
+  const NOD_PAIR_MS = 1100;                 // 2회 끄덕임이 모여야 하는 시간
+  const SHK_AMP = 0.020;                     // 가로 흔들림 임계
+  const SHK_PAIR_MS = 1200;                  // 좌우 왕복이 모여야 하는 시간
+  function trackHead(res, now){
+    const lm = res && res.faceLandmarks && res.faceLandmarks[0];
+    if(!lm || !lm[1]){ return; }
+    const y = lm[1].y, x = lm[1].x;          // 0~1
+
+    // ---- 끄덕임(세로) : 두 번 끄덕여야 1회 ----
+    if(noseBaseY === null){ noseBaseY = y; }
+    else {
+      const dy = y - noseBaseY;               // +면 숙임
+      if(nodPhase === 'idle'){
+        if(dy > NOD_DOWN && now > nodLockUntil) nodPhase = 'down';
+        else noseBaseY = noseBaseY * 0.98 + y * 0.02;   // 가만히 있을 때만 추종
+      } else if(nodPhase === 'down'){
+        if(dy < NOD_UP){
+          nodPhase = 'idle';
+          noseBaseY = y;
+          const t = now;
+          if(nodCount === 0 || (t - nodFirstAt) > NOD_PAIR_MS){ nodCount = 1; nodFirstAt = t; }
+          else { nodCount = 0; nodLockUntil = t + 900; EYE.nodSeq++; }   // ← 2회째 = 다음
+        }
+      }
+    }
+
+    // ---- 도리도리(가로) : 좌우로 크게 왕복하면 뒤로 ----
+    if(noseBaseX === null){ noseBaseX = x; }
+    else {
+      const dx = x - noseBaseX;
+      noseBaseX = noseBaseX * 0.9 + x * 0.1;  // 가로 기준선은 빠르게 추종(자세 무관)
+      if(now > shakeLockUntil){
+        if(dx > SHK_AMP && shakeDir <= 0){
+          if(shakeDir === 0){ shakeFirstAt = now; }
+          shakeDir = 1; shakeTurns++;
+        } else if(dx < -SHK_AMP && shakeDir >= 0){
+          if(shakeDir === 0){ shakeFirstAt = now; }
+          shakeDir = -1; shakeTurns++;
+        }
+        if(shakeTurns >= 3 && (now - shakeFirstAt) < SHK_PAIR_MS){
+          shakeTurns = 0; shakeDir = 0; shakeLockUntil = now + 900;
+          EYE.shakeSeq++;                     // ← 도리도리 = 뒤로
+        }
+        if((now - shakeFirstAt) > SHK_PAIR_MS){ shakeTurns = 0; shakeDir = 0; }
+      }
+    }
+  }
+
+  // ── 손 커서 / 주먹(grab) 클릭 ─────────────────────────────
+  // 검지 끝(8)을 커서로 삼는다. 클릭은 '주먹 쥐기'로 한다 — 네 손가락
+  // (검지·중지·약지·새끼) 끝이 각자의 밑마디보다 손바닥 쪽으로 말려들면
+  // 접힌 것으로 보고, 3개 이상 접히면 grab 으로 판정한다. 펼친 손과 뚜렷이
+  // 구분돼 오탐이 거의 없다. 손 크기로 정규화해 원근에 강인하게.
+  // 쥐는 순간 손끝이 흔들리므로, grab 이 시작되면 커서를 그 자리에 고정한다.
+  let handSmX = 0.5, handSmY = 0.5, grabOn = false, handMiss = 0, armed = true;
+  let frozenX = 0.5, frozenY = 0.5;
+  const FOLD_ON = 3, FOLD_OFF = 2, REARM = 1;  // 쥐기 3↑, 풀림 2↓, 재장전은 완전히 펴야(≤1)
+  function fingerFolded(lms, tipI, pipI, mcpI, wrist, span){
+    // 끝(tip)이 중간마디(pip)보다 손목에 가까우면 접힌 것
+    const dTip = Math.hypot(lms[tipI].x - wrist.x, lms[tipI].y - wrist.y);
+    const dPip = Math.hypot(lms[pipI].x - wrist.x, lms[pipI].y - wrist.y);
+    return (dPip - dTip) / span > 0.06;      // 끝이 pip보다 안쪽으로 충분히
+  }
+  function trackHand(now){
+    if(!handLm){ return; }
+    let hres = null;
+    try{ hres = handLm.detectForVideo(video, now); }catch(e){ return; }
+    const lms = hres && hres.landmarks && hres.landmarks[0];
+    if(!lms){
+      if(++handMiss > 6){ EYE.hand.present = false; grabOn = false; armed = true; EYE.hand.pinch = false; }
+      return;
+    }
+    handMiss = 0;
+    const tip = lms[8], wrist = lms[0], midMcp = lms[9];
+    const span = Math.hypot(wrist.x - midMcp.x, wrist.y - midMcp.y) || 0.001;
+
+    // 네 손가락 접힘 개수
+    let folded = 0;
+    if(fingerFolded(lms, 8,  6,  5,  wrist, span)) folded++;  // 검지
+    if(fingerFolded(lms, 12, 10, 9,  wrist, span)) folded++;  // 중지
+    if(fingerFolded(lms, 16, 14, 13, wrist, span)) folded++;  // 약지
+    if(fingerFolded(lms, 20, 18, 17, wrist, span)) folded++;  // 새끼
+
+    // 커서 좌표 — x 반전(거울), 살짝 스무딩. 단, grab 중이면 고정.
+    const cx = 1 - tip.x, cy = tip.y;
+    if(!grabOn){
+      handSmX = handSmX * 0.5 + cx * 0.5;
+      handSmY = handSmY * 0.5 + cy * 0.5;
+    }
+    EYE.hand.present = true;
+    EYE.hand.x = grabOn ? frozenX : handSmX;
+    EYE.hand.y = grabOn ? frozenY : handSmY;
+
+    // grab 엣지 — 쥐는 순간 한 번만 클릭. 다시 클릭하려면 손을 완전히
+    // 펴야(folded ≤ REARM) 재장전된다. 쥔 채로 부들거려도 재발화 없음.
+    if(!grabOn && armed && folded >= FOLD_ON){
+      grabOn = true; armed = false;             // 재장전 해제 — 손을 펴기 전엔 다시 클릭 안 됨
+      frozenX = handSmX; frozenY = handSmY;
+      EYE.pinchSeq++;                           // 클릭 신호(이름은 유지)
+    } else if(grabOn && folded <= FOLD_OFF){
+      grabOn = false;
+    }
+    if(folded <= REARM) armed = true;           // 손을 충분히 펴면 다음 클릭 준비
+    EYE.hand.pinch = grabOn;                    // 링을 조인 모양으로
+  }
 
   function tick(){
     if(video.readyState >= 2 && video.currentTime !== last){
       last = video.currentTime;
+      const now = performance.now();
       let res = null;
-      try{ res = landmarker.detectForVideo(video, performance.now()); }catch(e){}
+      try{ res = landmarker.detectForVideo(video, now); }catch(e){}
       const bs = res && res.faceBlendshapes && res.faceBlendshapes[0];
       if(bs){
         EYE.face = true;
@@ -1027,10 +1327,14 @@ window.WEAR_startEye = async function(){
         EYE.score = smooth;
         if(!EYE.closed && smooth > SHUT) EYE.closed = true;
         else if(EYE.closed && smooth < OPEN) EYE.closed = false;
+        trackHead(res, now);
       } else {
         // 얼굴이 안 잡히면 감음으로 치지 않는다 (기기를 벗은 상태)
         EYE.face = false; EYE.score = 0; EYE.closed = false;
+        noseBaseY = null; noseBaseX = null; nodPhase = 'idle'; nodCount = 0;
+        shakeDir = 0; shakeTurns = 0;
       }
+      trackHand(now);
     }
     requestAnimationFrame(tick);
   }
@@ -1049,15 +1353,10 @@ window.WEAR_startEye = async function(){
 
   // 시야 필터 — 내가 보는 것. cost = 하루 관측세(원), vision = 시야 기여도(pt)
   var VIEW_LAYERS = [
-    { key:'ad',      name:'옥외 광고 · 간판',   short:'광고', desc:'상업 목적으로 시야에 배치된 면',        cost:1420, vision:2 },
-    { key:'face',    name:'타인의 얼굴',        short:'얼굴', desc:'식별 가능한 정면 · 측면 형태',          cost:1180, vision:11 },
-    { key:'emotion', name:'표정 · 감정 신호',   short:'표정', desc:'타인의 상태를 읽는 레이어',             cost:760,  vision:6 },
-    { key:'crowd',   name:'군중',               short:'군중', desc:'3인 이상 집합. 단위 과금이 아닌 면적 과금', cost:610, vision:5 },
-    { key:'brand',   name:'브랜드 · 로고',      short:'로고', desc:'의류 · 차량 · 포장에 부착된 표식',      cost:540,  vision:2 },
-    { key:'income',  name:'가격 · 소득 신호',   short:'소득', desc:'가격표, 소지품 등급, 주거 등급',        cost:480,  vision:3 },
-    { key:'age',     name:'노화 · 피로 징후',   short:'노화', desc:'타인의 나이와 피로를 추정하는 레이어',  cost:420,  vision:4 },
-    { key:'news',    name:'속보 · 알림 피드',   short:'속보', desc:'요청하지 않은 정보의 삽입',             cost:390,  vision:2 },
-    { key:'body',    name:'거리의 신체',        short:'신체', desc:'부상 · 노숙 · 응급 상황',               cost:300,  vision:6 }
+    { key:'ad',     name:'광고 · 간판 · 로고',  short:'광고', desc:'상업 목적으로 시야에 배치된 면과 표식',   cost:1560, vision:8 },
+    { key:'people', name:'사람',               short:'사람', desc:'타인의 얼굴 · 표정 · 신체 · 군중',        cost:2380, vision:20 },
+    { key:'animal', name:'동물',               short:'동물', desc:'거리의 동물 · 반려동물 · 조류',           cost:900,  vision:6 },
+    { key:'nature', name:'자연',               short:'자연', desc:'하늘 · 식물 · 물 · 지형 등 비인공물',     cost:1260, vision:7 }
   ];
 
   // 노출 필터 — 남이 나에게서 읽는 것. dec = 결정도 기여, fee = 연 유지비(만원)
@@ -1072,6 +1371,22 @@ window.WEAR_startEye = async function(){
     { key:'fatigue', name:'피로',                 desc:'수면 부족 · 회복 상태',                     dec:0.04, fee:5 }
   ];
 
+  // 노출 차단 구독 — 항목을 하나씩 끄는 대신 플랜을 고른다.
+  var SHIELD_PLANS = [
+    { key:'open', name:'OPEN', ko:'차단하지 않음', price:0,
+      keep:['shape','past','emotion','gaze','age','income','voice','fatigue'],
+      desc:'지금 그대로. 타인은 당신에게서 여덟 가지 신호를 전부 읽습니다.',
+      foot:'BASIC · 기본 제공' },
+    { key:'veil', name:'VEIL', ko:'부분 차단', price:12000,
+      keep:['shape','age','gaze'],
+      desc:'형태와 나이, 시선 방향만 남깁니다. 감정 · 과거 · 소득 · 목소리 · 피로는 읽히지 않습니다.',
+      foot:'STANDARD · 가장 많이 선택' },
+    { key:'blackout', name:'BLACKOUT', ko:'전면 블러', price:39000,
+      keep:[],
+      desc:'타인의 시야에서 당신의 얼굴 자체가 블러로 처리됩니다. 아무 신호도 남지 않습니다.',
+      foot:'MAX · 완전 차단' }
+  ];
+
   var DEC_BASE = 0.10;                       // 전부 차단해도 남는 결정도
   var FULL_DAILY = VIEW_LAYERS.reduce(function(a,l){ return a+l.cost; }, 0); // 6,100
   var FULL_VISION = VIEW_LAYERS.reduce(function(a,l){ return a+l.vision; }, 0); // 41
@@ -1080,8 +1395,9 @@ window.WEAR_startEye = async function(){
   var S = {
     profile: { job:null, age:null, sex:null },
     blocked: {},          // 시야 필터: key -> true(차단)
-    expose: {},           // 노출 필터: key -> true(허용)
-    budgetDaily: 6000,
+    expose: {},           // 노출 필터: key -> true(허용). 구독 플랜이 결정한다.
+    shieldPlan: 'open',   // 노출 차단 구독 플랜
+    budgetDaily: 6100,
     spent: 0,             // 오늘 누적 관측세
     saved: 0,             // 오늘 누적 절약
     passed: 0,            // 통과 건수
@@ -1107,8 +1423,17 @@ window.WEAR_startEye = async function(){
   function decidedness(){
     return EXPOSE.reduce(function(a,e){ return a + (S.expose[e.key] ? e.dec : 0); }, DEC_BASE);
   }
-  function holdFee(){ // 만원/년
-    return EXPOSE.reduce(function(a,e){ return a + (S.expose[e.key] ? e.fee : 0); }, 0);
+  function planOf(){
+    for(var i=0;i<SHIELD_PLANS.length;i++){ if(SHIELD_PLANS[i].key === S.shieldPlan) return SHIELD_PLANS[i]; }
+    return SHIELD_PLANS[0];
+  }
+  function applyPlan(k){
+    S.shieldPlan = k;
+    var p = planOf();
+    EXPOSE.forEach(function(e){ S.expose[e.key] = p.keep.indexOf(e.key) >= 0; });
+  }
+  function holdFee(){ // 만원/년 — 선택한 구독 플랜의 연 환산 요금
+    return planOf().price * 12 / 10000;
   }
   function annualTax(){ return dailyProjTax() * 365; }
   function annualSaved(){ return dailyProjSaved() * 365; }
@@ -1126,7 +1451,7 @@ window.WEAR_startEye = async function(){
   function won(v){ return '₩' + Math.round(v).toLocaleString('ko-KR'); }
   function manwon(v){ return (Math.round(v*10)/10).toFixed(1).replace(/\.0$/,'') + '만원'; }
   function wonToMan(v){ return manwon(v/10000); }
-  function escapeHtml(s){ var d=document.createElement('div'); d.innerText=s; return d.innerHTML; }
+  function escapeHtml(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
   /* =========================================================
      온보딩
@@ -1134,6 +1459,28 @@ window.WEAR_startEye = async function(){
 
   var ob = document.getElementById('ob-content');
   var onboarding = document.getElementById('onboarding');
+
+  /* ---------- AR HUD 화면 맞춤 ----------
+     안경 화면은 스크롤이 불가능하므로, 각 화면의 내용이 세로로 넘치면
+     뷰포트 안에 들어오도록 자동 축소한다(zoom 은 레이아웃을 다시 계산해
+     기존 세로 중앙정렬이 그대로 유지된다). 넘치지 않으면 원본 크기. */
+  function WEAR_fitScreen(container, content){
+    if(!container || !content) return;
+    content.style.zoom = '1';
+    var avH = container.clientHeight, avW = container.clientWidth;
+    var h = content.offsetHeight, w = content.offsetWidth;
+    if(!h || !w || !avH || !avW) return;
+    var s = Math.min(1, avH / h, avW / w);
+    content.style.zoom = (s < 0.999) ? String(s) : '1';
+  }
+  function WEAR_fitAll(){
+    WEAR_fitScreen(onboarding, ob);
+    WEAR_fitScreen(document.getElementById('system'),  document.getElementById('sysMenu'));
+    WEAR_fitScreen(document.getElementById('sysPanel'), document.getElementById('panelInner'));
+  }
+  window.WEAR_fitAll = WEAR_fitAll;
+  window.addEventListener('resize', function(){ requestAnimationFrame(WEAR_fitAll); });
+
   var obEyeRaf = null;
   var OB_DISPOSE = [];
   function setContent(html){
@@ -1141,13 +1488,14 @@ window.WEAR_startEye = async function(){
     OB_DISPOSE.forEach(function(f){ try{ f(); }catch(e){} });
     OB_DISPOSE = [];
     ob.innerHTML = html; onboarding.scrollTop = 0;
+    requestAnimationFrame(function(){ WEAR_fitScreen(onboarding, ob); navBind(); });
   }
 
   /* ---------- 온보딩 뒤로가기 ----------
      각 단계는 들어올 때 자기 이전 단계를 등록한다.
      토큰은 뒤로 간 뒤에 이전 단계의 타이머가 되살아나는 것을 막는다. */
   var OB_PREV = null, OB_TOKEN = 0;
-  var OB_TOTAL = 10;
+  var OB_TOTAL = 12;
   function obPaintIndicator(step){
     var wrap = document.getElementById('obIndicator');
     var dots = document.getElementById('obDots');
@@ -1374,6 +1722,314 @@ window.WEAR_startEye = async function(){
   function spPct(v){ return Math.round(v) + '퍼센트'; }
   function spMan(v){ return (Math.round(v*10)/10).toFixed(1).replace(/\.0$/,'') + '만원'; }
 
+  /* =========================================================
+     손 없는 조작 — 끄덕임 · 음성으로 CTA 실행
+
+     이 세계의 안경은 손으로 누르는 물건이 아니다. 화면의
+     '다음/뒤로'를 눌러도 진행되지 않고, 대신 "고개를 끄덕이거나
+     '다음'이라고 말하세요" 안내가 나온다. 실제 진행은 끄덕임 또는
+     음성으로만 이뤄진다.
+
+       - 다음(primary): 현재 화면에서 비활성이 아닌 .ghost-btn
+       - 뒤로(back)   : #obBack
+       - 끄덕임        : window.EYE.nodSeq 증가 → 다음
+       - 음성          : "다음/계속/시작/응/그래/네" → 다음,
+                         "뒤로/취소/이전"           → 뒤로
+
+     안전 밸브: CTA 를 빠르게 두 번 누르면(더블클릭/더블탭) 그대로
+     실행된다. 카메라·마이크가 없는 환경에서 데모를 이어가기 위한 것.
+     ========================================================= */
+  var NAV = {
+    on:false, primary:null, back:null,
+    nodSeen:0, shakeSeen:0, guided:false, voiceLbl:'다음',
+    lastTapEl:null, lastTapAt:0, bypass:false
+  };
+
+  // 현재 온보딩 화면의 CTA 를 다시 스캔한다. setContent 직후에 한 번,
+  // 그리고 navPollNod 가 매 프레임 다시 부른다 — 버튼이 disabled 였다가
+  // 칩 선택으로 활성화되는 화면(직업·나이·성별)에서도 곧바로 잡히도록.
+  function navRescan(){
+    if(!NAV.on) return;
+    var buttons = ob.querySelectorAll('.ghost-btn');
+    var primary = null;
+    Array.prototype.forEach.call(buttons, function(b){
+      if(!primary && !b.disabled && b.offsetParent !== null) primary = b;
+    });
+    var back = document.getElementById('obBack');
+    var backEl = (back && !back.hidden) ? back : null;
+
+    var changed = (primary !== NAV.primary) || (backEl !== NAV.back);
+    NAV.primary = primary || null;
+    NAV.back = backEl;
+    if(!changed) return;                         // 바뀐 게 없으면 힌트 재생성 안 함
+
+    NAV.voiceLbl = (primary && /다음/.test(primary.textContent)) ? '다음' :
+                   (primary ? primary.textContent.trim().split(/\s+/)[0] : '다음');
+
+    var old = ob.querySelector('.cta-hint'); if(old) old.remove();
+    if(primary){
+      var hint = document.createElement('div');
+      hint.className = 'cta-hint';
+      var backHint = NAV.back
+        ? '<span class="sep">·</span><span class="shake"><i>↔</i> 도리도리로 뒤로</span>'
+        : '';
+      hint.innerHTML = '<span class="nod"><i>↓↓</i> 두 번 끄덕임</span>' +
+        '<span class="k">' + escapeHtml(NAV.voiceLbl).toUpperCase() + '</span>' +
+        '<span>이라고 말하기</span>' + backHint;
+      if(primary.parentNode) primary.parentNode.insertBefore(hint, primary.nextSibling);
+      requestAnimationFrame(function(){ hint.classList.add('show'); });
+    }
+  }
+
+  // setContent 직후 호출 — 새 화면이므로 카운터 기준선을 리셋하고 스캔한다.
+  function navBind(){
+    if(!NAV.on) return;
+    NAV.primary = null; NAV.back = null;         // 강제 재구성
+    NAV.nodSeen   = (window.EYE && window.EYE.nodSeq)   || 0;
+    NAV.shakeSeen = (window.EYE && window.EYE.shakeSeq) || 0;
+    navRescan();
+  }
+
+  // CTA 를 눌렀을 때 — 진행 대신 안내. (두 번째 빠른 탭은 통과)
+  function navGuide(kind){
+    var now = Date.now();
+    var el = kind === 'back' ? NAV.back : NAV.primary;
+    if(NAV.lastTapEl === el && (now - NAV.lastTapAt) < 600){
+      navGo(kind); return;                    // 안전 밸브: 더블탭 통과
+    }
+    NAV.lastTapEl = el; NAV.lastTapAt = now;
+    NAV.guided = true;
+    if(NAV.primary) NAV.primary.classList.add('await');
+    var msg = kind === 'back'
+      ? '고개를 좌우로 저으시거나 뒤로라고 말하세요'
+      : '고개를 두 번 끄덕이거나 ' + NAV.voiceLbl + '이라고 말하세요';
+    say(msg, { keep:true, interrupt:true, blip:false });
+  }
+
+  // 실제 진행
+  function navGo(kind){
+    var el = kind === 'back' ? NAV.back : NAV.primary;
+    if(!el || el.disabled) return;
+    shutUp();
+    NAV.primary = NAV.back = null;            // 중복 실행 방지
+    NAV.bypass = true;                         // 가로채기 우회
+    el.click();
+    NAV.bypass = false;
+  }
+
+  // 끄덕임/도리도리 폴링 — nodSeq↑=다음, shakeSeq↑=뒤로.
+  // 겸사겸사 CTA 를 다시 스캔한다(버튼이 뒤늦게 활성화되는 화면 대응).
+  var navScanAt = 0;
+  function navPollNod(){
+    if(NAV.on){
+      var now = performance.now();
+      if(now - navScanAt > 200){ navScanAt = now; navRescan(); }
+      if(window.EYE){
+        if(window.EYE.nodSeq > NAV.nodSeen){
+          NAV.nodSeen = window.EYE.nodSeq;
+          if(NAV.primary && !NAV.primary.disabled) navGo('next');
+        }
+        if(window.EYE.shakeSeq > NAV.shakeSeen){
+          NAV.shakeSeen = window.EYE.shakeSeq;
+          if(NAV.back) navGo('back');
+        }
+      }
+    }
+    requestAnimationFrame(navPollNod);
+  }
+
+  // 음성 인식 — 크롬 계열의 webkitSpeechRecognition
+  var VOICE = { rec:null, want:false, active:false };
+  function voiceSupported(){
+    return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  }
+  function vcSet(txt, state){                    // state: 'listen' | 'off' | 'err'
+    var chip = document.getElementById('vcChip');
+    if(!chip) return;
+    chip.hidden = false;
+    chip.classList.toggle('listening', state === 'listen');
+    chip.classList.toggle('off', state !== 'listen');
+    var lbl = document.getElementById('vcLbl');
+    if(lbl) lbl.textContent = txt;
+  }
+  function voiceStart(){
+    if(!NAV.on || !voiceSupported() || VOICE.active) return;
+    // 보안 컨텍스트가 아니면(예: file://) 마이크가 아예 안 열린다
+    if(!window.isSecureContext && location.protocol !== 'http:'){
+      vcSet('음성 불가 · localhost로 여세요', 'err'); return;
+    }
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var rec = new SR();
+    rec.lang = 'ko-KR'; rec.continuous = true; rec.interimResults = false;
+    rec.onresult = function(ev){
+      for(var i=ev.resultIndex; i<ev.results.length; i++){
+        var t = (ev.results[i][0].transcript || '').replace(/\s/g,'');
+        if(/(뒤로|이전|취소|백)/.test(t)){ if(NAV.back) navGo('back'); return; }
+        if(/(다음|계속|시작|확인|넘어가|응|그래|네|예|오케이|오키|고)/.test(t)){
+          if(NAV.primary && !NAV.primary.disabled) navGo('next'); return;
+        }
+      }
+    };
+    rec.onend = function(){ VOICE.active = false; if(VOICE.want) setTimeout(voiceStart, 250); };
+    rec.onerror = function(e){
+      VOICE.active = false;
+      var err = e && e.error;
+      if(err === 'not-allowed' || err === 'service-not-allowed'){
+        VOICE.want = false; vcSet('마이크 차단됨 · 눌러서 재시도', 'err');
+      } else if(err === 'no-speech' || err === 'aborted'){
+        /* 무시하고 onend 에서 재시작 */
+      } else if(err === 'network'){
+        vcSet('음성 네트워크 오류 · 재시도', 'err');
+      } else {
+        vcSet('음성 오류 · 눌러서 재시도', 'err');
+      }
+    };
+    try{
+      rec.start(); VOICE.rec = rec; VOICE.active = true; VOICE.want = true;
+      vcSet('음성 명령 듣는 중', 'listen');
+    }catch(e){ VOICE.active = false; vcSet('음성 시작 실패 · 눌러서 재시도', 'err'); }
+  }
+  function voiceStop(){
+    VOICE.want = false;
+    try{ if(VOICE.rec) VOICE.rec.stop(); }catch(e){}
+    var chip = document.getElementById('vcChip');
+    if(chip){ chip.classList.remove('listening'); chip.hidden = true; }
+  }
+  // 칩을 누르면 수동 재시도 (사용자 제스처가 있어야 마이크를 여는 브라우저 대응)
+  (function(){
+    var chip = document.getElementById('vcChip');
+    if(chip) chip.addEventListener('click', function(){
+      if(!voiceSupported()) return;
+      VOICE.want = true; VOICE.active = false;
+      try{ if(VOICE.rec) VOICE.rec.stop(); }catch(e){}
+      setTimeout(voiceStart, 120);
+    });
+  })();
+
+  // 온보딩 전체에 클릭 위임 — 어느 화면의 CTA든 여기서 가로챈다
+  function navInit(){
+    if(NAV.on) return;
+    NAV.on = true;
+    onboarding.addEventListener('click', function(ev){
+      if(NAV.bypass) return;                   // navGo 가 실행한 클릭은 통과
+      var b = ev.target.closest && ev.target.closest('.ghost-btn, #obBack');
+      if(!b) return;
+      if(b.disabled) return;
+      // 진행 성격의 CTA만 가로챈다. 화면 안의 선택 칩/토글 등은 그대로 둔다.
+      var isBack = (b.id === 'obBack');
+      var isPrimary = (b === NAV.primary);
+      if(!isBack && !isPrimary) return;
+      ev.preventDefault(); ev.stopPropagation();
+      navGuide(isBack ? 'back' : 'next');
+    }, true);
+    navPollNod();
+    handCursorLoop();
+    if(!voiceSupported()){
+      vcSet('음성 미지원 · 끄덕임만', 'off');
+    }
+  }
+
+  /* ================= 손 커서 + pinch 클릭 =================
+     EYE.hand(검지 끝, 정규화 좌표)를 화면 좌표로 옮겨 커서를 그린다.
+     CTA(다음/뒤로) 근처에 가면 자석처럼 스냅되고, 집으면(pinchSeq↑)
+     스냅된 버튼을 실행한다. 스냅 대상이 없으면 커서 아래 요소를 클릭. */
+  var HAND = { pinchSeen:0, target:null, lastClickAt:0, COOLDOWN:800, slider:null };
+  function handCursorLoop(){
+    var cur = document.getElementById('handCursor');
+    var E = window.EYE;
+    if(NAV.on && cur && E && E.hand && E.hand.present){
+      var vw = window.innerWidth, vh = window.innerHeight;
+      var px = E.hand.x * vw, py = E.hand.y * vh;
+
+      // 슬라이더가 있으면 트랙 근처에서 커서가 트랙 위로 붙는다(가로 조작 전용)
+      var slider = document.getElementById('bdRange');
+      var onSlider = false, sRect = null;
+      if(slider){
+        sRect = slider.getBoundingClientRect();
+        // 트랙 세로 중심에서 ±60px, 가로로는 트랙 범위 ±40px 안이면 슬라이더 조작 영역
+        var band = 60, padX = 40;
+        if(py > sRect.top - band && py < sRect.bottom + band &&
+           px > sRect.left - padX && px < sRect.right + padX){
+          onSlider = true;
+        }
+      }
+
+      // 스냅 대상 찾기 — 현재 화면의 CTA 중 커서에 가장 가까운 것
+      var targets = [];
+      if(NAV.primary) targets.push(NAV.primary);
+      if(NAV.back) targets.push(NAV.back);
+      var best = null, bestD = 1e9, SNAP = 90;
+      targets.forEach(function(el){
+        var r = el.getBoundingClientRect();
+        var cx = r.left + r.width/2, cy = r.top + r.height/2;
+        var dx = px - cx, dy = py - cy;
+        var inside = px>=r.left && px<=r.right && py>=r.top && py<=r.bottom;
+        var d = inside ? 0 : Math.hypot(dx, dy);
+        if(d < bestD){ bestD = d; best = { el:el, cx:cx, cy:cy, d:d }; }
+      });
+
+      var snapped = best && bestD < SNAP;
+      // 슬라이더 영역이 CTA 스냅보다 우선 — 트랙 위로 커서를 끌어올린다
+      if(onSlider){
+        snapped = false; HAND.target = null; HAND.slider = slider;
+        var trackY = sRect.top + sRect.height/2;
+        px = Math.max(sRect.left, Math.min(sRect.right, px));  // 트랙 밖으로 안 나가게
+        py = py*0.4 + trackY*0.6;
+        cur.classList.add('snap');
+      } else {
+        HAND.slider = null;
+        if(snapped){ px = px*0.45 + best.cx*0.55; py = py*0.45 + best.cy*0.55; }
+        HAND.target = snapped ? best.el : null;
+        cur.classList.toggle('snap', !!snapped);
+      }
+
+      cur.hidden = false;
+      cur.style.left = px + 'px';
+      cur.style.top  = py + 'px';
+      cur.classList.toggle('pinch', !!E.hand.pinch);
+
+      // pinch 엣지 → 클릭/점프 (직후 쿨다운 동안은 무시)
+      if(E.pinchSeq > HAND.pinchSeen){
+        HAND.pinchSeen = E.pinchSeq;
+        var nowMs = Date.now();
+        if(nowMs - HAND.lastClickAt < HAND.COOLDOWN){
+          /* 방금 조작함 — 손 펴는 도중의 재발화로 보고 무시 */
+        } else if(HAND.slider){
+          // 슬라이더: 커서 x → 값. 트랙 비율을 그대로 값에 매핑하고 스텝에 맞춘다.
+          HAND.lastClickAt = nowMs;
+          var sr = HAND.slider.getBoundingClientRect();
+          var ratio = (px - sr.left) / (sr.width || 1);
+          ratio = Math.max(0, Math.min(1, ratio));
+          var mn = parseInt(HAND.slider.min,10), mx = parseInt(HAND.slider.max,10);
+          var stp = parseInt(HAND.slider.step,10) || 1;
+          var raw = mn + ratio * (mx - mn);
+          var val = mn + Math.round((raw - mn) / stp) * stp;
+          HAND.slider.value = val;
+          HAND.slider.dispatchEvent(new Event('input', { bubbles:true }));
+          HAND.slider.dispatchEvent(new Event('change', { bubbles:true }));
+        } else {
+          HAND.lastClickAt = nowMs;
+          if(HAND.target === NAV.back){ if(NAV.back) navGo('back'); }
+          else if(HAND.target){        // 다음/기타 CTA
+            if(HAND.target === NAV.primary){ if(!NAV.primary.disabled) navGo('next'); }
+            else { NAV.bypass = true; HAND.target.click(); NAV.bypass = false; }
+          } else {
+            // 스냅 대상이 없으면 커서 아래 실제 요소를 누른다(칩/토글 선택용)
+            var elu = document.elementFromPoint(px, py);
+            if(elu && onboarding.contains(elu)){
+              var clickable = elu.closest('button, .chip, .plan, [role="button"], .vfx-row, .bd-demo-sw button');
+              if(clickable){ NAV.bypass = true; clickable.click(); NAV.bypass = false; }
+            }
+          }
+        }
+      }
+    } else if(cur){
+      cur.hidden = true; HAND.target = null; HAND.slider = null;
+      if(E && E.pinchSeq) HAND.pinchSeen = E.pinchSeq;   // 손이 사라진 동안의 pinch는 무시
+    }
+    requestAnimationFrame(handCursorLoop);
+  }
+
   function stageCamera(){
     stageEnter(null,1);
     setContent(
@@ -1395,7 +2051,7 @@ window.WEAR_startEye = async function(){
           setTimeout(go, 100); return;
         }
         window.WEAR_startEye().then(function(ok){
-          if(ok){ stageWear(); }
+          if(ok){ navInit(); voiceStart(); stageWear(); }
           else { fail((window.EYE && window.EYE.error) || '카메라를 열 수 없습니다.'); }
         }).catch(function(){ fail('카메라를 열 수 없습니다.'); });
       })();
@@ -1485,8 +2141,12 @@ window.WEAR_startEye = async function(){
     var hintEl = document.getElementById('calibHint');
     var bar = document.getElementById('calibBar');
     var held = 0, prev = 0, shown = 0, spoken = 0, started = false;
+    // '눈을 감아주세요'는 3,2,1 (3초). '눈을 떠주세요'는 2,1 (2초)만 센다.
+    var COUNT = wantClosed ? 3 : 2;
+    var DUR = COUNT * 1000;
+    var EN = ['','One','Two','Three'];
 
-    // '눈을 감아주세요' 안내 뒤 THREE → TWO → ONE을 또렷하게 센다.
+    // 안내 뒤 카운트를 또렷하게 센다.
     var spoke = say(instr, { interrupt:true, onEnd:begin, rate:0.95, keep:true });
     var guard = setTimeout(begin, spoke ? 1700 : 500);
 
@@ -1514,12 +2174,12 @@ window.WEAR_startEye = async function(){
           : (wantClosed ? '아직 눈을 떠주세요' : '눈을 떠주세요');
       }
 
-      var t = Math.min(1, held/3000);
+      var t = Math.min(1, held/DUR);
       bar.style.width = (t*100).toFixed(1) + '%';
 
-      var n = Math.max(1, 3 - Math.floor(held/1000));
+      var n = Math.max(1, COUNT - Math.floor(held/1000));
       if(n !== shown){ shown = n; num.innerHTML = '<span>' + n + '</span>'; }
-      if(ok && n !== spoken){ spoken = n; say(['','One','Two','Three'][n], {interrupt:true, rate:1.0, lang:'en', blip:false, keep:true}); }
+      if(ok && n !== spoken){ spoken = n; say(EN[n], {interrupt:true, rate:1.0, lang:'en', blip:false, keep:true}); }
 
       if(t >= 1){ next(); return; }
       obEyeRaf = requestAnimationFrame(tick);
@@ -1576,7 +2236,82 @@ window.WEAR_startEye = async function(){
     );
     scrambleTo(document.getElementById('vfWord'), 'VERIFIED', 560, 1000);
     say('verified', {interrupt:true, lang:'en', keep:true});
-    setTimeout(function(){ if(tk === OB_TOKEN) stageDecidedness(); }, 2500);
+    setTimeout(function(){ if(tk === OB_TOKEN) stageHandGuide(); }, 2500);
+  }
+
+  /* 손 조작 안내 — VERIFIED 다음, 결정도 화면 전. 여기서 실제로
+     주먹을 쥐어 '계속'을 눌러보게 해서 조작법을 몸으로 익히게 한다. */
+  /* 손 조작 안내 아이콘 — 펼친 손(커서), 주먹, 머리 */
+  var HG_ICON_CURSOR =
+    '<svg class="hg-svg" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      // 펼친 손 (다섯 손가락)
+      '<path d="M11 17 V8.5 a1.5 1.5 0 0 1 3 0 V15"/>' +
+      '<path d="M14 15 V6.5 a1.5 1.5 0 0 1 3 0 V15"/>' +
+      '<path d="M17 15 V7 a1.5 1.5 0 0 1 3 0 V15"/>' +
+      '<path d="M20 15 V9 a1.5 1.5 0 0 1 3 0 V18"/>' +
+      '<path d="M11 17 l-1.6-2.4 a1.5 1.5 0 0 1 2.5-1.6 L14 16"/>' +
+      '<path d="M11 17 v3 a6 6 0 0 0 6 6 h1 a5 5 0 0 0 5-5 v-2"/>' +
+    '</svg>';
+  var HG_ICON_FIST =
+    '<svg class="hg-svg" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      // 쥔 주먹 — 접힌 손가락 마디 + 엄지
+      '<rect x="9" y="12" width="14" height="12" rx="4"/>' +
+      '<path d="M11 12 v-2.5 M14.5 12 v-3 M18 12 v-3 M21.5 12 v-2"/>' +
+      '<path d="M9 16 h14"/>' +
+      '<path d="M9 15 c-2 0-3 1.2-3 3 s1 3 3 3"/>' +   // 엄지
+    '</svg>';
+  var HG_ICON_HEAD =
+    '<svg class="hg-svg" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<circle cx="16" cy="13" r="6"/>' +
+      '<path d="M9 26 c1.5-4 4-6 7-6 s5.5 2 7 6"/>' +
+      // 끄덕임·도리도리 방향 화살표
+      '<path d="M16 3 v2 M15 4 l1-1 1 1"/>' +
+      '<path d="M27 13 h2 M28 12 l1 1-1 1"/>' +
+    '</svg>';
+
+  function stageHandGuide(){
+    stageEnter(stageWear,3);
+    var hasHand = !!(window.EYE && window.EYE.handReady);
+    setContent(
+      '<div class="voice-line">아래와 같이 조작하세요.</div>' +
+      '<div class="hg">' +
+        '<div class="hg-row">' +
+          '<div class="hg-ic">' + HG_ICON_CURSOR + '</div>' +
+          '<div class="hg-tx"><b>손을 펴고 화면에 비추면 커서가 따라옵니다.</b></div>' +
+        '</div>' +
+        '<div class="hg-row">' +
+          '<div class="hg-ic">' + HG_ICON_FIST + '</div>' +
+          '<div class="hg-tx"><b>주먹을 쥐어 클릭할 수 있습니다.</b></div>' +
+        '</div>' +
+        '<div class="hg-row">' +
+          '<div class="hg-ic">' + HG_ICON_HEAD + '</div>' +
+          '<div class="hg-tx"><b>손으로 조작이 어렵다면, 고개를 끄덕이거나 좌우로 흔들어보세요.</b></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="micro" id="hgState">' +
+        (hasHand ? '아래 버튼 위에서 손을 쥐어 넘어가 보세요.'
+                 : '손 인식을 준비 중입니다. 지금은 끄덕임이나 음성으로 넘어가세요.') +
+      '</div>' +
+      '<button class="ghost-btn" id="bHand">계속</button>'
+    );
+    document.getElementById('bHand').onclick = stageDecidedness;
+
+    // 손 모델이 뒤늦게 준비되면 안내문을 갱신
+    if(!hasHand){
+      var tk = OB_TOKEN, tries = 0;
+      var iv = setInterval(function(){
+        if(tk !== OB_TOKEN || tries++ > 60){ clearInterval(iv); return; }
+        if(window.EYE && window.EYE.handReady){
+          clearInterval(iv);
+          var st = document.getElementById('hgState');
+          if(st) st.textContent = '아래 버튼 위에서 손을 쥐어 넘어가 보세요.';
+        }
+      }, 500);
+      OB_DISPOSE.push(function(){ clearInterval(iv); });
+    }
   }
 
   /* 글자를 무작위로 굴리다 왼쪽부터 자리를 잡는 디코딩 연출 */
@@ -1736,9 +2471,7 @@ window.WEAR_startEye = async function(){
       '<div class="voice-line" style="margin-top:44px; animation-delay:1.0s;">당신의 결정도는 ' + v.toFixed(2) + ', ' + b.name + ' 구간입니다.</div>' +
       '<div class="voice-line dim" style="animation-delay:1.6s; font-size:13px;">' + b.desc + '</div>' +
       '<div class="vfx" style="margin-top:30px;"><div class="vfx-list" id="decLegend"></div></div>' +
-      '<div class="voice-line dim" style="animation-delay:2.2s; font-size:12.5px; margin-top:22px;">' +
-        '지난 6개월간 당신을 오래 본 사람은 없고, 짧게 본 사람은 많았던 형태입니다.</div>' +
-      '<button class="ghost-btn" id="bNext5" style="opacity:0; animation:riseIn .6s 2.8s ease forwards;">계속</button>'
+      '<button class="ghost-btn" id="bNext5">계속</button>'
     );
     buildDecLegend(document.getElementById('decLegend'), v);
     wireDecLegend(v);
@@ -1874,7 +2607,14 @@ window.WEAR_startEye = async function(){
       neg:[['UNRECORDED','기록없음',5],['VOICELESS','무발화',4],['DEPENDENT','피부양',4],['FRAGILE','취약',3],
            ['UNVERIFIED','미검증',3],['INVISIBLE','비가시',3],['UNCONSENTED','비동의',3],['OVERWRITTEN','덧씌워짐',2]] },
 
-    { code:'ERA 02', span:'8 — 15', name:'모사', dec:0.19,
+    { code:'ERA 02', span:'7 — 10', name:'분화', dec:0.12,
+      ym:'2005.04', age:8, pv:59, nv:21,
+      line:'얼굴이 조금씩 저마다 갈라집니다. 이름보다 인상이 먼저 붙습니다.',
+      read:[17, 87, 20, 10],
+      traits:[26, 40, 50, 30, 71, 76, 61],
+      back:['자라는 중', '누구네 아이', '아직 말랑함', '금세 잊힘'] },
+
+    { code:'ERA 03', span:'8 — 15', name:'모사', dec:0.19,
       ym:'2009.04', age:12, pv:55, nv:29,
       line:'주변의 얼굴을 따라 짓습니다. 아직 어떤 인상도 쌓이지 않습니다.',
       M:{ len:0.95, jaw:0.84, cheek:1.30, brow:0.55, nose:0.78, skull:1.08 },
@@ -1886,7 +2626,7 @@ window.WEAR_startEye = async function(){
       neg:[['VOLATILE','급변',4],['DERIVATIVE','파생',4],['COMPARED','비교됨',4],['UNSTABLE','불안정',3],
            ['SORTED','분류됨',3],['RANKED','서열화',3],['PRE-SHAPED','선성형',3],['SELF-ERASING','자기지움',2]] },
 
-    { code:'ERA 03', span:'16 — 21', name:'노출', dec:0.38,
+    { code:'ERA 04', span:'16 — 21', name:'노출', dec:0.38,
       ym:'2015.04', age:18, pv:48, nv:57,
       line:'처음으로 다수에게 기록됩니다. 관측량이 급증하고, 얼굴이 자료가 됩니다.',
       M:{ len:1.00, jaw:0.93, cheek:1.12, brow:0.80, nose:0.92, skull:1.02 },
@@ -1898,7 +2638,14 @@ window.WEAR_startEye = async function(){
       neg:[['EXPOSED','전면노출',5],['SCRAPED','수집됨',5],['MISREAD','오독',4],['UNSTABLE','불안정',4],
            ['PERMANENT','영구화',4],['RATED','평점화',3],['SELF-EDITING','자기검열',3],['LEAKED','유출',3]] },
 
-    { code:'ERA 04', span:'22 — 27', name:'편집', dec:0.55,
+    { code:'ERA 05', span:'20 — 23', name:'전시', dec:0.44,
+      ym:'2017.04', age:20, pv:51, nv:55,
+      line:'가장 많이 보여지는 시기입니다. 고르기도 전에 계속 찍힙니다.',
+      read:[48, 62, 54, 40],
+      traits:[50, 57, 65, 51, 58, 60, 43],
+      back:['한창때', '눈에 잘 띔', '어디서 봤더라', '아직 안 정해짐'] },
+
+    { code:'ERA 06', span:'22 — 27', name:'편집', dec:0.55,
       ym:'2021.04', age:24, pv:58, nv:51,
       line:'보여질 각도를 고르기 시작합니다. 고르지 않은 얼굴은 남지 않습니다.',
       M:{ len:1.03, jaw:1.00, cheek:1.00, brow:0.95, nose:1.00, skull:1.00 },
@@ -1910,7 +2657,7 @@ window.WEAR_startEye = async function(){
       neg:[['ANGLED','각도고정',4],['COSTED','과금개시',4],['PERFORMED','연기',4],['NARROWING','폭축소',3],
            ['AUDITED','감사대상',3],['COMPARABLE','비교가능',3],['UNSPONTANEOUS','비자발',3],['MAINTAINED','유지비용',3]] },
 
-    { code:'ERA 05', span:'28 — 현재', name:'정착', dec:0.71,
+    { code:'ERA 07', span:'28 — 현재', name:'정착', dec:0.71,
       ym:'2026.09', age:29, pv:51, nv:66,
       line:'대체로 같은 사람으로 읽힙니다. 변동의 폭이 좁아지고 있습니다.',
       M:{ len:1.05, jaw:1.07, cheek:0.94, brow:1.05, nose:1.05, skull:0.98 },
@@ -1922,7 +2669,7 @@ window.WEAR_startEye = async function(){
       neg:[['BILLED','과세중',5],['NARROWING','폭축소',4],['TYPECAST','정형화',4],['PRE-JUDGED','선판단',4],
            ['SURVEILLED','상시관측',4],['RIGID','경직',3],['UNSURPRISING','무의외',3],['UPKEEP-BOUND','유지구속',3]] },
 
-    { code:'ERA 06', span:'+10Y 예측', name:'고착', dec:0.88, pred:true,
+    { code:'ERA 08', span:'+10Y 예측', name:'고착', dec:0.88, pred:true,
       ym:'2036.09', age:39, pv:33, nv:88,
       line:'지금 속도가 유지될 경우의 추정입니다. 되돌리려면 재조정 비용이 발생합니다.',
       M:{ len:1.07, jaw:1.13, cheek:0.84, brow:1.16, nose:1.10, skull:0.96 },
@@ -2253,24 +3000,23 @@ window.WEAR_startEye = async function(){
       return '<line class="lg-stem" data-stem="'+e.age+'" x1="'+lgX(e.age).toFixed(1)+'" y1="'+lifeY(lifeScore(e))+'" x2="'+lgX(e.age).toFixed(1)+'" y2="'+(LG_H-34)+'"/>';
     }).join('');
     var x0=LG_L, xN=LG_W-LG_R;
-    var predX=lgX(IMG_ERAS[5].age);
+    var predEra = IMG_ERAS.filter(function(e){ return e.pred; })[0] || IMG_ERAS[IMG_ERAS.length-1];
+    var predX=lgX(predEra.age);
     var area=line+'L'+xN+','+LG_AXIS+'L'+x0+','+LG_AXIS+'Z';
     return '<svg class="lg-svg" viewBox="0 0 '+LG_W+' '+LG_H+'" role="img" aria-label="나이에 따른 종합 인상 추이">'+
       '<defs><linearGradient id="lgMix" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#E8E8E2" stop-opacity=".22"/><stop offset="100%" stop-color="#E8E8E2" stop-opacity="0"/></linearGradient>'+
       '<pattern id="lgPred" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#2A2C29" stroke-width="1"/></pattern></defs>'+
       grid+'<rect x="'+predX.toFixed(1)+'" y="0" width="'+(LG_W-predX).toFixed(1)+'" height="'+LG_H+'" fill="url(#lgPred)" opacity=".5"/>'+
       '<line class="lg-pred" x1="'+predX.toFixed(1)+'" y1="0" x2="'+predX.toFixed(1)+'" y2="'+LG_H+'"/>'+
-      '<path d="'+area+'" fill="url(#lgMix)" opacity=".5"/>'+
       '<line class="lg-zero" x1="'+LG_L+'" y1="'+LG_AXIS+'" x2="'+(LG_W-LG_R)+'" y2="'+LG_AXIS+'"/>'+
-      stems+denseDots+'<path class="lg-composite" d="'+line+'"/>'+dots+xlabels+
-      '<text x="'+LG_L+'" y="18" fill="#8c8f89" font-size="8" font-family="var(--eng)" font-weight="700" letter-spacing=".18em">POSITIVE ↑</text>'+
-      '<text x="'+LG_L+'" y="'+(LG_H-8)+'" fill="#8c8f89" font-size="8" font-family="var(--eng)" font-weight="700" letter-spacing=".18em">NEGATIVE ↓</text>'+
+      stems+denseDots+'<path class="lg-composite" d="'+line+'"/>'+dots+
       '</svg>';
   }
 
   function stageImageScan(){
     var tk = stageEnter(stageDecidedness,5);
-    var sel = 4;
+    var sel = 0;
+    for(var si=0; si<IMG_ERAS.length; si++){ if(IMG_ERAS[si].age === 29){ sel = si; break; } }
 
     var readHtml = READ_KEYS.map(function(r, i){
       return '<div class="rdr">' +
@@ -2301,18 +3047,17 @@ window.WEAR_startEye = async function(){
         '<div class="imx-sticky">' +
           '<div class="imx-focus">' +
             '<div class="imx-main">' +
-              '<div class="imx-stage">' +
-                '<canvas id="imxCv"></canvas>' +
+              '<div class="imx-stage" id="imxStage">' +
+                '<img class="imx-face" id="imxFace" alt="" draggable="false" />' +
+                '<model-viewer class="imx-model" id="imxModel" style="display:none;" ' +
+                  'camera-controls disable-zoom disable-pan interaction-prompt="none" ' +
+                  'min-camera-orbit="auto 90deg auto" max-camera-orbit="auto 90deg auto" ' +
+                  'camera-orbit="0deg 90deg auto" shadow-intensity="0.7" exposure="1.05" ' +
+                  'environment-image="neutral" alt="8세 3D 얼굴 · 끌어서 돌려보기"></model-viewer>' +
                 '<i class="imx-c tl"></i><i class="imx-c tr"></i><i class="imx-c bl"></i><i class="imx-c br"></i>' +
                 '<div class="imx-badge eng" id="imxBadge"></div>' +
               '</div>' +
-              '<div class="imx-hint eng">DRAG TO SPIN · 끌어서 돌리면 뒷모습이 나옵니다</div>' +
-              '<div class="imx-tr-label" style="margin:10px 0 5px;">LIFE TIMELINE · 종합 인상 · 년월 · 나이</div>' +
-              '<div class="lifegraph" id="lifeGraph">' +
-                '<span class="lg-predlab">종합 인상 = 긍정 − 부정</span>' +
-                lifeGraphSvg() +
-                nodesHtml +
-              '</div>' +
+              '<div class="imx-hint eng">DRAG ↔ SPIN · 좌우로 끌면 360° 돌아갑니다 · 나이대는 아래에서 선택</div>' +
             '</div>' +
             '<div class="imx-detail">' +
               '<div class="imx-era">' +
@@ -2326,6 +3071,15 @@ window.WEAR_startEye = async function(){
               '<div class="imx-tr-label" style="margin-top:16px;">TRAITS · 종합</div>' +
               '<div class="trait-summary" id="imxTraits"></div>' +
             '</div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="imx-timeline">' +
+          '<div class="imx-tr-label" style="margin:0 0 5px;">LIFE TIMELINE · 종합 인상 · 년월 · 나이</div>' +
+          '<div class="lifegraph" id="lifeGraph">' +
+            '<span class="lg-predlab">종합 인상 = 긍정 − 부정</span>' +
+            lifeGraphSvg() +
+            nodesHtml +
           '</div>' +
         '</div>' +
 
@@ -2343,6 +3097,48 @@ window.WEAR_startEye = async function(){
     var lineEl = document.getElementById('imxLine');
     var traitsEl = document.getElementById('imxTraits');
 
+    // 턴어라운드: 나이별 24프레임(0~345°, 15° 간격). 좌우 드래그로 360° 회전.
+    var ANGLES = 24, STEP_DEG = 360 / ANGLES;
+    var faceImg = document.getElementById('imxFace');
+    var modelEl = document.getElementById('imxModel');
+    var stageEl = document.getElementById('imxStage');
+    var MODEL_AGE = 8;              // 이 나이대만 사진 대신 3D 모델을 보여준다
+    var usingModel = false;         // 지금 화면이 3D 모델을 쓰는 중인지
+    var curAge = null, angleIdx = 0, spinTimer = null;
+    var frameCache = {};
+
+    function pad2(n){ return String(n).padStart(2, '0'); }
+    function pad3(n){ n = ((n % 360) + 360) % 360; return String(n).padStart(3, '0'); }
+    function framePath(age, deg){ var a = pad2(age); return 'assets/turnaround/' + a + '/' + a + '_' + pad3(deg) + '.png'; }
+    function preloadAge(age){
+      if(frameCache[age]) return;
+      var arr = [];
+      for(var k = 0; k < ANGLES; k++){ var im = new Image(); im.src = framePath(age, k * STEP_DEG); arr.push(im); }
+      frameCache[age] = arr;
+    }
+    function showFrame(){ if(curAge != null) faceImg.src = framePath(curAge, angleIdx * STEP_DEG); }
+    function setFace(e){
+      curAge = e.age;
+      usingModel = (modelEl && e.age === MODEL_AGE);
+      if(usingModel){
+        if(!modelEl.getAttribute('src')){ modelEl.setAttribute('src', 'assets/models/age08.glb'); }  // 처음 열 때만 71MB 로드
+        faceImg.style.display = 'none';
+        modelEl.style.display = 'block';
+        try{ modelEl.cameraOrbit = '0deg 90deg auto'; }catch(_){}   // 정면부터 시작
+        facing = 'front';
+      } else {
+        if(modelEl) modelEl.style.display = 'none';
+        faceImg.style.display = '';
+        preloadAge(curAge);
+        showFrame();
+      }
+    }
+    function facingFromAngle(){
+      var deg = ((angleIdx * STEP_DEG) % 360 + 360) % 360;
+      return (deg > 90 && deg < 270) ? 'back' : 'front';
+    }
+
+    // 앞/뒤 판독 텍스트 — 회전 각도(정면 0° · 뒤통수 180°)에 연동된다.
     var facing = 'front';
     function paintSide(){
       var e = IMG_ERAS[sel];
@@ -2350,7 +3146,7 @@ window.WEAR_startEye = async function(){
       if(facing === 'back'){
         sideEl.innerHTML = '<b>뒷모습</b> 타인에게 남은 인상<span>' + e.back.join(' · ') + '</span>';
         wrap.classList.add('back');
-        flipEl.textContent = '앞에서 보기';
+        flipEl.textContent = '정면으로';
       } else {
         sideEl.innerHTML = '<b>정면</b> 타인이 읽는 판독값<span>' +
           READ_KEYS.map(function(r, i){ return r.k + ' ' + e.read[i]; }).join(' · ') + '</span>';
@@ -2359,12 +3155,63 @@ window.WEAR_startEye = async function(){
       }
     }
 
-    var head = mountHead(document.getElementById('imxCv'), sel, {
-      onSide: function(sd){ facing = sd; paintSide(); }
-    });
-    OB_DISPOSE.push(head.dispose);
+    // 드래그 스핀
+    var dragging = false, lastX = 0, acc = 0, PX_PER_STEP = 14;
+    function xOf(ev){ return ev.touches ? ev.touches[0].clientX : ev.clientX; }
+    function onDown(ev){ if(usingModel) return; dragging = true; acc = 0; lastX = xOf(ev); stageEl.classList.add('spinning'); if(spinTimer){ clearInterval(spinTimer); spinTimer = null; } ev.preventDefault(); }
+    function onMove(ev){
+      if(usingModel) return;
+      if(!dragging) return;
+      var x = xOf(ev); acc += (x - lastX); lastX = x;
+      var moved = false;
+      while(acc <= -PX_PER_STEP){ angleIdx = (angleIdx + 1) % ANGLES; acc += PX_PER_STEP; moved = true; }
+      while(acc >=  PX_PER_STEP){ angleIdx = (angleIdx - 1 + ANGLES) % ANGLES; acc -= PX_PER_STEP; moved = true; }
+      if(moved){ showFrame(); facing = facingFromAngle(); paintSide(); }
+      ev.preventDefault();
+    }
+    function onUp(){ if(!dragging) return; dragging = false; stageEl.classList.remove('spinning'); }
+    stageEl.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
 
-    flipEl.onclick = function(){ head.spinTo(facing === 'front' ? 1 : 0); };
+    // 3D 모델(8세)이 켜져 있으면 카메라를 앞/뒤로 돌린다 — 사진 프레임 회전과 별개
+    function modelFacing(){
+      try{
+        var th = modelEl.getCameraOrbit().theta * 180 / Math.PI;   // 라디안 → 도
+        th = ((th % 360) + 360) % 360;
+        return (th > 90 && th < 270) ? 'back' : 'front';
+      }catch(_){ return facing; }
+    }
+    if(modelEl){
+      modelEl.addEventListener('camera-change', function(){
+        if(!usingModel) return;
+        var f = modelFacing();
+        if(f !== facing){ facing = f; paintSide(); }
+      });
+    }
+
+    // 앞↔뒤 반바퀴 애니메이션 (최단 방향)
+    flipEl.onclick = function(){
+      if(usingModel){
+        var toBack = (modelFacing() === 'front');
+        try{ modelEl.cameraOrbit = (toBack ? '180deg' : '0deg') + ' 90deg auto'; }catch(_){}
+        return;
+      }
+      var target = (facingFromAngle() === 'front') ? 12 : 0;   // 12 * 15° = 180°
+      if(spinTimer) clearInterval(spinTimer);
+      spinTimer = setInterval(function(){
+        if(angleIdx === target){ clearInterval(spinTimer); spinTimer = null; facing = facingFromAngle(); paintSide(); return; }
+        var cw = (target - angleIdx + ANGLES) % ANGLES, ccw = (angleIdx - target + ANGLES) % ANGLES;
+        angleIdx = (cw <= ccw) ? (angleIdx + 1) % ANGLES : (angleIdx - 1 + ANGLES) % ANGLES;
+        showFrame(); facing = facingFromAngle(); paintSide();
+      }, 28);
+    };
+
+    OB_DISPOSE.push(function(){
+      if(spinTimer){ clearInterval(spinTimer); spinTimer = null; }
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    });
 
     var TRAIT_DEFS = [
       {code:'WARMTH', label:'온기', left:'따뜻한', right:'차가운'},
@@ -2372,26 +3219,27 @@ window.WEAR_startEye = async function(){
       {code:'APPROACH', label:'친근감', left:'다가가기 쉬운', right:'다가가기 어려운'},
       {code:'STRENGTH', label:'강인함', left:'단단한', right:'여린'},
       {code:'VITALITY', label:'활력', left:'밝은', right:'어두운'},
-      {code:'DELICACY', label:'섬세함', left:'부드러운', right:'거친'},
-      {code:'STABILITY', label:'안정감', left:'차분한', right:'불안한'}
+      {code:'DELICACY', label:'섬세함', left:'부드러운', right:'거친'}
     ];
     function renderTraits(e){
       return TRAIT_DEFS.map(function(t, i){
         var v = Math.max(0, Math.min(100, Number(e.traits[i] || 50)));
-        var leftMag = Math.max(0, 50-v) * 2;
-        var rightMag = Math.max(0, v-50) * 2;
-        var leftDot = v <= 50 ? (v*2) : 100;
-        var rightDot = v >= 50 ? ((v-50)*2) : 0;
-        return '<div class="trait-summary-row">' +
-          '<span class="trait-end left">' + t.left + '</span>' +
-          '<div class="trait-track"><i class="trait-fill" style="right:0;width:' + leftMag + '%;"></i>' +
-          '<i class="trait-dot" style="left:' + leftDot + '%;"></i></div>' +
-          '<b>' + t.label + '</b>' +
-          '<em>' + v + '</em>' +
-          '<div class="trait-track"><i class="trait-fill" style="left:0;width:' + rightMag + '%;"></i>' +
-          '<i class="trait-dot" style="left:' + rightDot + '%;"></i></div>' +
-          '<span class="trait-end right">' + t.right + '</span>' +
-          '</div>';
+        var mag = Math.round(Math.abs(v - 50) * 2);  // 중앙에서 벗어난 정도 0~100
+        var leansLeft = v < 50, leansRight = v > 50, neutral = mag === 0;
+        // 왼쪽 극(따뜻한·믿음직한…)이 + 방향, 오른쪽 극이 − 방향이다.
+        var leanTxt = neutral ? '0%' : (leansLeft ? '+' : '−') + mag + '%';
+        return '<div class="trait-read">' +
+          '<div class="trait-read-head">' +
+            '<b>' + t.label + '</b><em>' + t.code + '</em>' +
+            '<span class="lean' + (neutral ? ' mid' : '') + '">' + leanTxt + '</span>' +
+          '</div>' +
+          '<div class="trait-meter"><i class="mid"></i>' +
+            '<i class="pin' + (neutral ? ' neutral' : '') + '" style="left:' + v + '%;"></i></div>' +
+          '<div class="trait-poles">' +
+            '<span>' + t.left + '</span>' +
+            '<span>' + t.right + '</span>' +
+          '</div>' +
+        '</div>';
       }).join('');
     }
 
@@ -2418,7 +3266,7 @@ window.WEAR_startEye = async function(){
       Array.prototype.forEach.call(document.querySelectorAll('.lg-dot'), function(c){
         c.classList.toggle('on', parseInt(c.getAttribute('data-d'), 10) === i);
       });
-      head.setEra(i);
+      setFace(e);
       paintSide();
     }
     paint(sel);
@@ -2430,7 +3278,7 @@ window.WEAR_startEye = async function(){
       });
     });
 
-    document.getElementById('bImg').onclick = stageProfile;
+    document.getElementById('bImg').onclick = stageProfileJob;
   }
 
   var PROFILE_FIELDS = [
@@ -2479,42 +3327,69 @@ window.WEAR_startEye = async function(){
     ]}
   ];
 
-  function stageProfile(){
-    stageEnter(stageImageScan,6);
-    var html =
-      '<div class="voice-line">당신에 대해 알려주세요.</div>' +
-      '<div class="profile-form">';
-    PROFILE_FIELDS.forEach(function(f){
-      html += '<div class="field"><div class="field-label">'+f.label+'</div>';
-      if(f.grouped){
-        html += '<div class="job-groups">';
-        f.groups.forEach(function(g,gi){
-          html += '<div class="job-group" data-group="'+gi+'"><button type="button" class="job-group-toggle"><span class="jg-main"><b>'+g.label+'</b><em>'+g.en+'</em></span><i>＋</i></button><div class="chips job-chips" data-key="'+f.key+'">';
-          g.options.forEach(function(o){
-            html += '<button class="chip" data-key="'+f.key+'" data-val="'+o.v+'">'+o.t+'</button>';
-          });
-          html += '</div></div>';
-        });
-        html += '</div>';
-      } else {
-        html += '<div class="chips" data-key="'+f.key+'">';
-        f.options.forEach(function(o){
-          html += '<button class="chip" data-key="'+f.key+'" data-val="'+o.v+'">'+o.t+'</button>';
-        });
-        html += '</div>';
-      }
-      html += '</div>';
+  function profileFieldByKey(k){
+    for(var i=0;i<PROFILE_FIELDS.length;i++){ if(PROFILE_FIELDS[i].key === k) return PROFILE_FIELDS[i]; }
+    return null;
+  }
+
+  /* 한 페이지에 질문 하나. 직업 → 나이 → 성별 순으로 넘어간다. */
+  function profileChipPage(o){
+    stageEnter(o.prev, o.step);
+    var f = profileFieldByKey(o.key);
+    var html = '<div class="voice-line">' + o.title + '</div>' +
+      (o.sub ? '<div class="voice-line dim" style="font-size:12.5px;">' + o.sub + '</div>' : '') +
+      '<div class="profile-form solo"><div class="chips lg" data-key="' + f.key + '">';
+    f.options.forEach(function(op){
+      html += '<button class="chip" data-key="'+f.key+'" data-val="'+op.v+'">'+op.t+'</button>';
     });
-    html += '</div><button class="ghost-btn" id="bProfile" disabled>다음</button>';
+    html += '</div></div><button class="ghost-btn" id="bProfile" disabled>다음</button>';
     setContent(html);
 
     S.profile = S.profile || { job:null, age:null, sex:null };
     var btn = document.getElementById('bProfile');
-    // 뒤로 왔을 때 고른 값이 남아 있게 한다
-    Array.prototype.forEach.call(document.querySelectorAll('.chip'), function(c){
-      if(S.profile[c.getAttribute('data-key')] === c.getAttribute('data-val')) c.classList.add('on');
+    var chips = document.querySelectorAll('.chip');
+    Array.prototype.forEach.call(chips, function(c){
+      if(S.profile[f.key] === c.getAttribute('data-val')) c.classList.add('on');
+      c.addEventListener('click', function(){
+        S.profile[f.key] = c.getAttribute('data-val');
+        Array.prototype.forEach.call(chips, function(x){ x.classList.toggle('on', x === c); });
+        btn.disabled = false;
+      });
     });
-    btn.disabled = !(S.profile.job && S.profile.age && S.profile.sex);
+    btn.disabled = !S.profile[f.key];
+    btn.onclick = o.next;
+  }
+
+  function stageProfileJob(){
+    stageEnter(stageImageScan,6);
+    var f = profileFieldByKey('job');
+    var html =
+      '<div class="voice-line">당신의 직업은 무엇인가요?</div>' +
+      '<div class="voice-line dim" style="font-size:12.5px;">직군에 따라 하루 응시량과 관측세 평균이 달라집니다.</div>' +
+      '<div class="profile-form"><div class="job-groups">';
+    f.groups.forEach(function(g,gi){
+      html += '<div class="job-group" data-group="'+gi+'"><button type="button" class="job-group-toggle">' +
+        '<span class="jg-main"><b>'+g.label+'</b><em>'+g.en+'</em></span><i>＋</i></button>' +
+        '<div class="chips job-chips" data-key="job">';
+      g.options.forEach(function(o){
+        html += '<button class="chip" data-key="job" data-val="'+o.v+'">'+o.t+'</button>';
+      });
+      html += '</div></div>';
+    });
+    html += '</div></div><button class="ghost-btn" id="bProfile" disabled>다음</button>';
+    setContent(html);
+
+    S.profile = S.profile || { job:null, age:null, sex:null };
+    var btn = document.getElementById('bProfile');
+    var chips = document.querySelectorAll('.chip');
+    Array.prototype.forEach.call(chips, function(c){
+      if(S.profile.job === c.getAttribute('data-val')){
+        c.classList.add('on');
+        var g = c.closest('.job-group');
+        if(g) g.classList.add('open');
+      }
+    });
+    btn.disabled = !S.profile.job;
     Array.prototype.forEach.call(document.querySelectorAll('.job-group-toggle'), function(toggle){
       toggle.addEventListener('click', function(){
         var group = toggle.parentElement;
@@ -2523,20 +3398,32 @@ window.WEAR_startEye = async function(){
         if(!wasOpen) group.classList.add('open');
       });
     });
-    Array.prototype.forEach.call(document.querySelectorAll('.chip'), function(chip){
+    Array.prototype.forEach.call(chips, function(chip){
       chip.addEventListener('click', function(){
-        var key = chip.getAttribute('data-key');
-        S.profile[key] = chip.getAttribute('data-val');
+        S.profile.job = chip.getAttribute('data-val');
         var parentGroup = chip.closest('.job-group');
         if(parentGroup) parentGroup.classList.add('open');
-        Array.prototype.forEach.call(
-          document.querySelectorAll('.chip[data-key="'+key+'"]'),
-          function(c){ c.classList.toggle('on', c === chip); }
-        );
-        btn.disabled = !(S.profile.job && S.profile.age && S.profile.sex);
+        Array.prototype.forEach.call(chips, function(c){ c.classList.toggle('on', c === chip); });
+        btn.disabled = false;
       });
     });
-    btn.onclick = stageCohort;
+    btn.onclick = stageProfileAge;
+  }
+
+  function stageProfileAge(){
+    profileChipPage({
+      key:'age', step:7, prev:stageProfileJob, next:stageProfileSex,
+      title:'당신의 나이를 알려주세요.',
+      sub:'연령대는 추정 관측세의 기준값이 됩니다.'
+    });
+  }
+
+  function stageProfileSex(){
+    profileChipPage({
+      key:'sex', step:8, prev:stageProfileAge, next:stageCohort,
+      title:'성별을 알려주세요.',
+      sub:'밝히지 않아도 평균값으로 계산됩니다.'
+    });
   }
 
   var JOB_META = {
@@ -2569,88 +3456,150 @@ window.WEAR_startEye = async function(){
   }
 
   function stageCohort(){
-    stageEnter(stageProfile,7);
+    stageEnter(stageProfileSex,9);
     var n = cohortNumbers(S.profile);
+    var mBefore = n.annual * 10000 / 12;          // 최적화 전 월평균 (원)
+    var mSaved  = n.saved  * 10000 / 12;          // 월평균 절약 (원)
+    var mAfter  = mBefore - mSaved;               // WEAR 최적화 후 월평균 (원)
     setContent(
-      '<div class="voice-line dim" style="font-size:12.5px;">' + escapeHtml(cohortLabel(S.profile)) + ' · 동일 조건 사용자 평균</div>' +
+      '<div class="voice-line">' + escapeHtml(cohortLabel(S.profile)) + ' 직군 사용자는<br>' +
+        '월평균 ' + won(mBefore) + '을 사용했어요.</div>' +
+      '<div class="voice-line dim" style="font-size:12.5px;">이 기기로 절세한 금액의 10%가 수수료로 자동 청구됩니다.</div>' +
       '<div class="invoice">' +
-        '<div class="invoice-row"><span>연 평균 관측세</span><span>' + manwon(n.annual) + '</span></div>' +
-        '<div class="invoice-row"><span>최적화로 아낀 금액</span><span>' + manwon(n.saved) + ' (' + n.rate + '%)</span></div>' +
-        '<div class="invoice-row" style="border-bottom:none;"><span>수수료 (절약분의 10%)</span><span>' + manwon(n.fee) + '</span></div>' +
+        '<div class="invoice-row"><span>최적화 전 월평균</span><span>' + won(mBefore) + '</span></div>' +
+        '<div class="invoice-row"><span>WEAR로 최적화 후 월평균</span><span>' + won(mAfter) + '</span></div>' +
+        '<div class="invoice-row hl"><span>아낀 금액</span>' +
+          '<span>' + won(mSaved) + '<em>−' + n.rate + '%</em></span></div>' +
+        '<div class="invoice-note">연평균 총 ' + manwon(n.saved) + '을 아끼는 셈입니다.</div>' +
+        '<div class="invoice-div"></div>' +
+        '<div class="invoice-row"><span>수수료 (절약분의 10%)</span><span>' + won(mSaved * 0.10) + '</span></div>' +
       '</div>' +
-      '<div class="micro">이 기기로 절세한 금액의 10%가 수수료로 자동 청구됩니다.</div>' +
       '<button class="ghost-btn" id="bFinish">다음</button>'
     );
     document.getElementById('bFinish').onclick = stageBudget;
   }
 
   /* ---- 1/3 예산 ---- */
-  var BD_MIN = 1000, BD_MAX = 15000, BD_STEP = 500, BD_DEFAULT = 6000;
+  // 정중앙이 동일 조건 평균(FULL_DAILY = 6,100)이 되도록 눈금을 맞춘다.
+  // 맨 오른쪽 한 칸은 금액이 아니라 '무제한' 이다.
+  var BD_STEP = 500, BD_MIN = 1100, BD_MAX = 10600;
+  var BD_NOLIMIT = BD_MAX + BD_STEP;               // 11,100 — 슬라이더 최우측
+  var BD_DEFAULT = 6100;
 
   function stageBudget(){
-    stageEnter(stageCohort,8);
+    stageEnter(stageCohort,10);
     var last = S.budgetDaily || BD_DEFAULT;
     if(last < BD_MIN) last = BD_MIN;
     if(last > BD_MAX) last = BD_MAX;
+    last = BD_MIN + Math.round((last - BD_MIN) / BD_STEP) * BD_STEP;   // 눈금에 맞춘다
+    var startVal = (S.budgetDaily === 0) ? BD_NOLIMIT : last;
 
     setContent(
       '<div class="voice-line">하루에 얼마까지 보시겠습니까?</div>' +
-      '<div class="voice-line dim" style="font-size:12.5px;">예산을 넘기면 물체가 자동으로 블러 처리 됩니다. 남은 응시량은 항상 표시됩니다.</div>' +
+      '<div class="voice-line dim" style="font-size:12.5px;">예산을 넘기면 물체가 자동으로 블러 처리 됩니다.</div>' +
+      '<div class="bd-demo-lead"><button class="bd-demo-btn" id="bdDemoBtn" type="button">블러 처리 예시 보기</button></div>' +
       '<div class="bd-wrap">' +
         '<div class="bd-amount" id="bdAmt">—</div>' +
         '<div class="bd-unit" id="bdUnit">1일 상한</div>' +
-        '<input class="bd-range" id="bdRange" type="range" ' +
-          'min="'+BD_MIN+'" max="'+BD_MAX+'" step="'+BD_STEP+'" value="'+last+'" ' +
-          'aria-label="하루 응시 예산" />' +
-        '<div class="bd-scale"><span>'+won(BD_MIN)+'</span><span>'+won(BD_MAX)+'</span></div>' +
-        '<button class="bd-nolimit" id="bdNo" type="button">상한을 설정하지 않겠습니다</button>' +
+        '<div class="bd-track">' +
+          '<input class="bd-range" id="bdRange" type="range" ' +
+            'min="'+BD_MIN+'" max="'+BD_NOLIMIT+'" step="'+BD_STEP+'" value="'+startVal+'" ' +
+            'aria-label="하루 응시 예산" />' +
+          '<i class="bd-avgtick"></i>' +
+          '<div class="bd-marks">' +
+            '<span class="l">'+won(BD_MIN)+'</span>' +
+            '<span class="c">동일 조건 평균 <b>'+won(FULL_DAILY)+'</b></span>' +
+            '<span class="r" id="bdMaxMark">무제한</span>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
       '<div class="micro" id="bdNote"></div>' +
-      '<button class="ghost-btn" id="bBudget">계속</button>'
+      '<button class="ghost-btn" id="bBudget">계속</button>' +
+      // 블러 예시 — 팝업 오버레이
+      '<div class="bd-modal" id="bdModal" hidden>' +
+        '<div class="bd-modal-panel">' +
+          '<button class="bd-modal-x" id="bdModalX" type="button" aria-label="닫기">×</button>' +
+          '<div class="bd-demo blurred" id="bdDemo">' +
+            '<div class="bd-demo-stage">' +
+              '<div class="bd-demo-obj bd-demo-sign">SALE 50%</div>' +
+              '<div class="bd-demo-obj bd-demo-logo">LOGO</div>' +
+              '<div class="bd-demo-obj bd-demo-face bd-demo-f1"></div>' +
+              '<div class="bd-demo-obj bd-demo-face bd-demo-f2"></div>' +
+              '<div class="bd-demo-obj bd-demo-price">₩12,900</div>' +
+              '<div class="bd-demo-stamp" id="bdDemoStamp">OVER BUDGET · BLURRED</div>' +
+            '</div>' +
+            '<div class="bd-demo-sw">' +
+              '<button type="button" data-m="over" class="on">예산 초과 상태</button>' +
+              '<button type="button" data-m="in">예산 안에 있을 때</button>' +
+            '</div>' +
+            '<div class="bd-demo-cap" id="bdDemoCap">상한을 넘긴 뒤로는 과금 대상이 모두 이렇게 가려집니다.</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
     );
 
     var range = document.getElementById('bdRange');
     var amt   = document.getElementById('bdAmt');
     var unit  = document.getElementById('bdUnit');
     var note  = document.getElementById('bdNote');
-    var noBtn = document.getElementById('bdNo');
-    var noLimit = (S.budgetDaily === 0);
+    var mark  = document.getElementById('bdMaxMark');
+
+    function isNoLimit(){ return parseInt(range.value, 10) >= BD_NOLIMIT; }
 
     function paint(){
-      if(noLimit){
+      if(isNoLimit()){
         S.budgetDaily = 0;
-        amt.textContent = '상한 없음';
+        amt.textContent = '무제한';
         amt.classList.add('off');
-        unit.textContent = '제한 없이 과금';
-        range.disabled = true;
-        noBtn.classList.add('on');
-        note.innerHTML = '동일 조건 평균 사용량은 하루 ' + won(FULL_DAILY) + '입니다.';
+        unit.textContent = '상한 없이 과금';
+        mark.classList.add('on');
+        note.innerHTML = '상한이 없으면 블러는 걸리지 않지만, 청구도 멈추지 않습니다.';
       } else {
         S.budgetDaily = parseInt(range.value, 10);
-        last = S.budgetDaily;
         amt.textContent = won(S.budgetDaily);
         amt.classList.remove('off');
         unit.textContent = '1일 상한';
-        range.disabled = false;
-        noBtn.classList.remove('on');
-        note.innerHTML = '동일 조건 평균 사용량은 하루 ' + won(FULL_DAILY) + '입니다.' +
-          (S.budgetDaily < FULL_DAILY
-            ? '<br>이 상한이면 평균보다 먼저 블러가 시작됩니다.'
-            : '');
+        mark.classList.remove('on');
+        note.innerHTML = (S.budgetDaily < FULL_DAILY)
+          ? '평균보다 ' + won(FULL_DAILY - S.budgetDaily) + ' 낮습니다. 하루가 끝나기 전에 블러가 시작됩니다.'
+          : (S.budgetDaily === FULL_DAILY
+              ? '동일 조건 평균과 같은 상한입니다.'
+              : '평균보다 ' + won(S.budgetDaily - FULL_DAILY) + ' 높습니다. 블러는 거의 걸리지 않습니다.');
       }
     }
 
-    range.addEventListener('input', function(){ if(!noLimit) paint(); });
-    range.addEventListener('change', function(){ if(!noLimit) paint(); });
-    noBtn.addEventListener('click', function(){
-      noLimit = !noLimit;
-      if(!noLimit) range.value = last;
-      paint();
-    });
+    range.addEventListener('input', paint);
+    range.addEventListener('change', paint);
     paint();
 
+    // 블러 처리 예시 — 팝업 오버레이
+    var demoBtn = document.getElementById('bdDemoBtn');
+    var modal   = document.getElementById('bdModal');
+    var modalX  = document.getElementById('bdModalX');
+    var demo    = document.getElementById('bdDemo');
+    var cap     = document.getElementById('bdDemoCap');
+    var stamp   = document.getElementById('bdDemoStamp');
+    function openDemo(){ modal.hidden = false; }
+    function closeDemo(){ modal.hidden = true; }
+    demoBtn.addEventListener('click', openDemo);
+    modalX.addEventListener('click', closeDemo);
+    modal.addEventListener('click', function(ev){ if(ev.target === modal) closeDemo(); });
+    Array.prototype.forEach.call(demo.querySelectorAll('.bd-demo-sw button'), function(b){
+      b.addEventListener('click', function(){
+        var over = b.getAttribute('data-m') === 'over';
+        demo.classList.toggle('blurred', over);
+        Array.prototype.forEach.call(demo.querySelectorAll('.bd-demo-sw button'), function(x){
+          x.classList.toggle('on', x === b);
+        });
+        stamp.textContent = over ? 'OVER BUDGET · BLURRED' : 'WITHIN BUDGET · BILLING';
+        cap.textContent = over
+          ? '상한을 넘긴 뒤로는 과금 대상이 모두 이렇게 가려집니다.'
+          : '상한 안에서는 그대로 보이고, 본 만큼 과금됩니다.';
+      });
+    });
+
     document.getElementById('bBudget').onclick = function(){
-      if(!noLimit) S.budgetDaily = parseInt(range.value, 10);
+      S.budgetDaily = isNoLimit() ? 0 : parseInt(range.value, 10);
       stageViewFilter();
     };
   }
@@ -2679,19 +3628,11 @@ window.WEAR_startEye = async function(){
 
   /* ---- 2/3 시야 필터 (IN) ---- */
   function stageViewFilter(){
-    stageEnter(stageBudget,9);
+    stageEnter(stageBudget,11);
     setContent(
       '<div class="voice-line">무엇을 보지 않으시겠습니까?</div>' +
       '<div class="voice-line dim" style="font-size:12.5px;">선택한 항목은 시야에서 제거되고, 그만큼 과금되지 않습니다.</div>' +
       '<div class="vfx">' +
-        '<div class="vfx-head">' +
-          '<span class="vfx-kicker">VIEW FILTER</span>' +
-          '<span class="vfx-rule"></span>' +
-          '<span class="vfx-kicker">' + pad2(VIEW_LAYERS.length) + ' LAYERS</span>' +
-        '</div>' +
-        '<div class="vfx-strip" id="vfxStrip"></div>' +
-        '<div class="vfx-striplabel"><span>VISION&nbsp; <b id="vfxVis">100%</b></span>' +
-          '<span>FIXED ' + (100 - FULL_VISION) + '&nbsp; ·&nbsp; FILTERABLE ' + FULL_VISION + '</span></div>' +
         '<div class="vfx-list" id="fltList"></div>' +
         '<div class="vfx-readout">' +
           '<div class="vfx-cell"><div class="vfx-rv" id="roTax">-</div>' +
@@ -2704,26 +3645,6 @@ window.WEAR_startEye = async function(){
       '</div>' +
       '<button class="ghost-btn" id="bView">계속</button>'
     );
-
-    // 시야 100을 눈금으로 펼친다.
-    // 앞의 59칸은 어떤 필터로도 걷어낼 수 없는 고정분이고,
-    // 뒤의 41칸만 레이어에 배정된다. 레이어를 끄면 그 몫의 눈금이 주저앉는다.
-    var strip = document.getElementById('vfxStrip');
-    var fixed = 100 - FULL_VISION;
-    for(var f=0; f<fixed; f++){
-      var bt = document.createElement('i');
-      bt.className = 'base';
-      strip.appendChild(bt);
-    }
-    strip.lastChild.classList.add('edge');
-    VIEW_LAYERS.forEach(function(l){
-      for(var k=0; k<l.vision; k++){
-        var t = document.createElement('i');
-        t.setAttribute('data-k', l.key);
-        t.style.transitionDelay = (k * 26) + 'ms';
-        strip.appendChild(t);
-      }
-    });
 
     var list = document.getElementById('fltList');
     VIEW_LAYERS.forEach(function(l, i){
@@ -2741,21 +3662,7 @@ window.WEAR_startEye = async function(){
       }
       row.addEventListener('click', toggle);
       row.addEventListener('keydown', function(e){ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); toggle(); } });
-      // 행에 손을 얹으면 그 레이어가 스트립의 어디를 차지하는지 밝아진다
-      row.addEventListener('mouseenter', function(){ hl(l.key, true); });
-      row.addEventListener('mouseleave', function(){ hl(l.key, false); });
-      row.addEventListener('focus', function(){ hl(l.key, true); });
-      row.addEventListener('blur', function(){ hl(l.key, false); });
       list.appendChild(row);
-    });
-
-    function hl(key, on){
-      Array.prototype.forEach.call(strip.children, function(t){
-        if(t.getAttribute('data-k') === key) t.classList.toggle('hl', on && !t.classList.contains('out'));
-      });
-    }
-    strip.addEventListener('mouseleave', function(){
-      Array.prototype.forEach.call(strip.children, function(t){ t.classList.remove('hl'); });
     });
 
     function paint(){
@@ -2764,14 +3671,6 @@ window.WEAR_startEye = async function(){
       var v = document.getElementById('roVision');
       v.textContent = visionPct() + '%';
       v.className = 'vfx-rv' + (visionPct() < 70 ? ' warn' : '');
-      document.getElementById('vfxVis').textContent = visionPct() + '%';
-      Array.prototype.forEach.call(strip.children, function(t){
-        var k = t.getAttribute('data-k');
-        if(!k) return;                       // 고정분은 건드리지 않는다
-        var off = !!S.blocked[k];
-        t.classList.toggle('out', off);
-        if(off) t.classList.remove('hl');
-      });
     }
     paint();
     document.getElementById('bView').onclick = stageExposeFilter;
@@ -2779,63 +3678,60 @@ window.WEAR_startEye = async function(){
 
   /* ---- 3/3 노출 필터 (OUT) ---- */
   function stageExposeFilter(){
-    stageEnter(stageViewFilter,10);
+    stageEnter(stageViewFilter,12);
+
+    var cards = SHIELD_PLANS.map(function(p){
+      var dec = EXPOSE.reduce(function(a,e){ return a + (p.keep.indexOf(e.key) >= 0 ? e.dec : 0); }, DEC_BASE);
+      var list = EXPOSE.map(function(e){
+        var kept = p.keep.indexOf(e.key) >= 0;
+        return '<div class="' + (kept ? '' : 'no') + '"><i>' + (kept ? '·' : '×') + '</i>' + e.name + '</div>';
+      }).join('');
+      return '<button type="button" class="plan" data-p="' + p.key + '" aria-pressed="false">' +
+        '<div class="plan-name">' + p.name + '</div>' +
+        '<div class="plan-ko">' + p.ko + '</div>' +
+        '<div class="plan-price">' + (p.price ? won(p.price) : '₩0') + '<small>/ 월</small></div>' +
+        '<div class="plan-desc">' + p.desc + '</div>' +
+        '<div class="plan-list">' + list + '</div>' +
+        '<div class="plan-foot">' + p.foot + ' · DEC ' + dec.toFixed(2) + '</div>' +
+      '</button>';
+    }).join('');
+
     setContent(
-      '<div class="voice-line">당신에게서 무엇을 읽게 하시겠습니까?</div>' +
-      '<div class="voice-line dim" style="font-size:12.5px;">허용한 항목만 타인의 시야에 남습니다. 남기려면 유지비가 듭니다.</div>' +
+      '<div class="voice-line">타인의 시야를 차단하고 싶으신가요?</div>' +
+      '<div class="voice-line dim" style="font-size:12.5px;">차단은 구독으로 유지됩니다. 해지하면 다음 날부터 다시 읽힙니다.</div>' +
       '<div class="vfx">' +
         '<div class="vfx-head">' +
-          '<span class="vfx-kicker">EXPOSE FILTER</span>' +
+          '<span class="vfx-kicker">SHIELD PLAN</span>' +
           '<span class="vfx-rule"></span>' +
-          '<span class="vfx-kicker">' + pad2(EXPOSE.length) + ' SIGNALS</span>' +
+          '<span class="vfx-kicker">' + pad2(SHIELD_PLANS.length) + ' PLANS</span>' +
         '</div>' +
-        '<div class="vfx-list" id="expList"></div>' +
-        '<div class="vfx-sublabel">EXCEPTION — 필터가 적용되지 않는 대상</div>' +
-        '<div class="vfx-list" id="expLocked"></div>' +
-        '<div class="vfx-foot">예외 목록은 관계 기록에서 자동 구성됩니다. ' +
-          '해제하려면 가족 감면을 포기해야 합니다.</div>' +
+        '<div class="plan-grid" id="planGrid">' + cards + '</div>' +
         '<div class="vfx-readout">' +
           '<div class="vfx-cell"><div class="vfx-rv" id="roDec">-</div>' +
             '<div class="vfx-rk">DECIDEDNESS<em>결정도</em></div></div>' +
           '<div class="vfx-cell"><div class="vfx-rv" id="roFee">-</div>' +
-            '<div class="vfx-rk">ANNUAL FEE<em>연 유지비</em></div></div>' +
+            '<div class="vfx-rk">ANNUAL FEE<em>연 구독료</em></div></div>' +
           '<div class="vfx-cell"><div class="vfx-rv" id="roCnt">-</div>' +
             '<div class="vfx-rk">EXPOSED<em>노출 항목</em></div></div>' +
         '</div>' +
       '</div>' +
-      '<div class="micro" id="expWarn" style="color:var(--rust); opacity:0;">결정도 0.30 아래에서는 사람들이 당신의 얼굴을 기억하지 못합니다.</div>' +
       '<button class="ghost-btn" id="bExp">계속</button>'
     );
 
-    var list = document.getElementById('expList');
-    EXPOSE.forEach(function(e, i){
-      var row = vfxRow({
-        i: i + 1, name: e.name, code: e.key.toUpperCase(), desc: e.desc,
-        figure: '+' + e.dec.toFixed(2), unit: 'DEC', pt: e.fee + '만원/년',
-        on: !!S.expose[e.key], cut: !S.expose[e.key]
-      });
-      function toggle(){
-        S.expose[e.key] = !S.expose[e.key];
-        row.classList.toggle('on', !!S.expose[e.key]);
-        row.classList.toggle('cut', !S.expose[e.key]);
-        row.setAttribute('aria-checked', !!S.expose[e.key]);
+    var planEls = document.querySelectorAll('.plan');
+    Array.prototype.forEach.call(planEls, function(el){
+      el.addEventListener('click', function(){
+        applyPlan(el.getAttribute('data-p'));
         paint();
-      }
-      row.addEventListener('click', toggle);
-      row.addEventListener('keydown', function(ev){ if(ev.key===' '||ev.key==='Enter'){ ev.preventDefault(); toggle(); } });
-      list.appendChild(row);
+      });
     });
-
-    var lockedRow = vfxRow({
-      i: 0, name: '등록 가족 3인', code: 'FAMILY',
-      desc: '당신이 등록하지 않았습니다. 관계 기록에서 자동 등록된 항목입니다.',
-      figure: '전부', unit: '허용', pt: 'LOCKED', on: true, cut: false
-    });
-    lockedRow.classList.add('locked');
-    lockedRow.removeAttribute('tabindex');
-    document.getElementById('expLocked').appendChild(lockedRow);
 
     function paint(){
+      Array.prototype.forEach.call(planEls, function(el){
+        var on = el.getAttribute('data-p') === S.shieldPlan;
+        el.classList.toggle('on', on);
+        el.setAttribute('aria-pressed', on);
+      });
       var d = decidedness();
       var el = document.getElementById('roDec');
       el.textContent = d.toFixed(2);
@@ -2843,29 +3739,30 @@ window.WEAR_startEye = async function(){
       document.getElementById('roFee').textContent = manwon(holdFee());
       var on = EXPOSE.filter(function(e){ return S.expose[e.key]; }).length;
       document.getElementById('roCnt').textContent = on + ' / ' + EXPOSE.length;
-      document.getElementById('expWarn').style.opacity = d < 0.32 ? '1' : '0';
     }
+    applyPlan(S.shieldPlan);
     paint();
     document.getElementById('bExp').onclick = stageCalibrate;
   }
 
   /* ---- 확인 → 시작 ---- */
   function stageCalibrate(){
-    stageEnter(stageExposeFilter,10);
+    stageEnter(stageExposeFilter,12);
     var bl = blockedList();
     var ex = EXPOSE.filter(function(e){ return S.expose[e.key]; });
+    var pl = planOf();
     setContent(
-      '<div class="voice-line dim" style="font-size:12.5px;">적용됩니다</div>' +
-      '<div class="invoice" style="max-width:630px;">' +
+      '<div class="voice-line">아래와 같이 적용됩니다.</div>' +
+      '<div class="invoice">' +
         '<div class="invoice-row"><span>차단</span><span style="font-size:13px;">' + (bl.length ? bl.length + '개 레이어' : '없음') + '</span></div>' +
+        '<div class="invoice-row"><span>노출 차단 플랜</span><span style="font-size:13px;">' + pl.name + ' · ' + pl.ko + ' · ' + won(pl.price) + '/월</span></div>' +
         '<div class="invoice-row"><span>노출</span><span style="font-size:13px;">' + ex.length + ' / ' + EXPOSE.length + '개</span></div>' +
         '<div class="invoice-row"><span>일 예상 관측세</span><span>' + won(dailyProjTax()) + '</span></div>' +
         '<div class="invoice-row"><span>연 예상 관측세</span><span>' + wonToMan(annualTax()) + '</span></div>' +
         '<div class="invoice-row"><span>연 절약 · 수수료</span><span>' + wonToMan(annualSaved()) + ' / ' + wonToMan(annualSaved()*0.1) + '</span></div>' +
         '<div class="invoice-row" style="border-bottom:none;"><span>시야 완성도 · 결정도</span><span>' + visionPct() + '% · ' + decidedness().toFixed(2) + '</span></div>' +
       '</div>' +
-      '<div class="micro">필터는 SYSTEM에서 언제든 다시 조정할 수 있습니다.<br>' +
-      '화면을 누르면 SYSTEM이 열립니다.</div>' +
+      '<div class="micro">필터는 SYSTEM에서 언제든 다시 조정할 수 있습니다.</div>' +
       '<button class="ghost-btn" id="bOpen">시작하기</button>'
     );
     document.getElementById('bOpen').onclick = goExperience;
@@ -2873,6 +3770,7 @@ window.WEAR_startEye = async function(){
 
   function goExperience(){
     OB_PREV = null; OB_TOKEN++;
+    voiceStop(); NAV.on = false; NAV.primary = NAV.back = null;
     var bk = document.getElementById('obBack');
     if(bk) bk.hidden = true;
     onboarding.classList.add('fade-out');
@@ -2887,6 +3785,8 @@ window.WEAR_startEye = async function(){
     document.getElementById('experience').hidden = true;
     onboarding.style.display = 'block';
     onboarding.classList.remove('fade-out');
+    // 카메라는 이미 켜져 있으니(재진입) 조작을 바로 되살린다
+    if(window.EYE && window.EYE.active){ NAV.on = true; voiceStart(); }
     stageCamera();
   }
 
@@ -3475,7 +4375,7 @@ window.WEAR_startEye = async function(){
       '<div class="stat-row"><span>필터 없이는</span><span>'+wonToMan(FULL_DAILY*365)+'</span></div>' +
       '<div class="stat-row"><span>연 절약</span><span>'+wonToMan(annualSaved())+' ('+Math.round(dailyProjSaved()/FULL_DAILY*100)+'%)</span></div>' +
       '<div class="stat-row"><span>수수료 (절약분 10%)</span><span>'+wonToMan(annualSaved()*0.1)+'</span></div>' +
-      '<div class="stat-row"><span>결정도 유지비</span><span>'+manwon(holdFee())+'</span></div>' +
+      '<div class="stat-row"><span>노출 차단 구독료</span><span>'+manwon(holdFee())+'</span></div>' +
       '<div class="stat-row total"><span>연 합계</span><span>'+wonToMan(annualTax() + annualSaved()*0.1 + holdFee()*10000)+'</span></div>' +
       '<div class="italic-line">'+escapeHtml(cohortLabel(S.profile))+' 평균은 '+manwon(coh.annual)+'입니다. 당신은 '+
         (annualTax()/10000 < coh.annual ? '평균보다 '+manwon(coh.annual - annualTax()/10000)+' 아래' : '평균보다 '+manwon(annualTax()/10000 - coh.annual)+' 위')+'입니다.</div>';
@@ -3495,7 +4395,7 @@ window.WEAR_startEye = async function(){
     }
     if(key === 'hold'){
       return '현재 결정도 ' + decidedness().toFixed(2) + ', ' + bandOf(decidedness()).name + ' 구간. ' +
-             bandOf(decidedness()).desc + ' 연 유지비 ' + spMan(holdFee()) + '. ' +
+             bandOf(decidedness()).desc + ' 연 구독료 ' + spMan(holdFee()) + '. ' +
              (decidedness() < 0.32 ? '경고. 0.3 아래에서는 사람들이 당신의 얼굴을 기억하지 못합니다.'
                                    : '유지 강도를 낮추면 노출 항목이 순서대로 흐려집니다.');
     }
@@ -3571,6 +4471,8 @@ window.WEAR_startEye = async function(){
     document.getElementById('panelInner').innerHTML = panelContent(key);
     document.getElementById('sysPanel').classList.add('active');
     inPanel = true;
+    requestAnimationFrame(function(){ WEAR_fitScreen(document.getElementById('sysPanel'), document.getElementById('panelInner')); });
+    setTimeout(function(){ WEAR_fitScreen(document.getElementById('sysPanel'), document.getElementById('panelInner')); }, 80);
 
     var sb = document.getElementById('speakBtn');
     sb.hidden = true;              // 낭독 기능 제거
@@ -3701,6 +4603,7 @@ window.WEAR_startEye = async function(){
     refreshMenuValues();
     document.getElementById('world').classList.add('dimmed');
     document.getElementById('system').classList.add('active');
+    requestAnimationFrame(function(){ WEAR_fitScreen(document.getElementById('system'), document.getElementById('sysMenu')); });
   }
 
   function exitToWorldImmediate(){
