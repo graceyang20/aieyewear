@@ -1,9 +1,0 @@
-{
-  "name": "wear-cctv",
-  "version": "1.0.0",
-  "private": true,
-  "description": "WEAR In-Sight OS — live ITS CCTV viewer with a same-origin HLS proxy (Vercel serverless).",
-  "engines": {
-    "node": ">=18"
-  }
-}
