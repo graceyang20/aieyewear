@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>WEAR — In-Sight OS</title>
 <meta name="description" content="관측세의 시대를 위한 AI 아이웨어, WEAR의 In-Sight OS 인터랙티브 프로토타입" />
-<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Archivo+Narrow:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -65,6 +64,17 @@ html,body{
 .voice-line.dim{ color:var(--muted); font-size:14px; font-weight:400; line-height:1.7; letter-spacing:0; }
 @keyframes riseIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
 .micro{ font-size:11.5px; color:var(--dim); text-align:center; margin-top:26px; max-width:630px; margin-left:auto; margin-right:auto; line-height:1.7; }
+/* welcome(표지) 화면 — 영문 워드마크는 --eng(GentleMonster→Archivo Narrow) */
+.wel{ text-align:center; }
+.wel-mark{ font-family:var(--eng); font-weight:700; font-size:clamp(66px,17vw,140px); line-height:.9;
+  letter-spacing:.03em; color:var(--text); margin:0; opacity:0; animation:riseIn 1s ease forwards; }
+.wel-sub{ font-family:var(--eng); font-weight:700; font-size:clamp(12px,2.4vw,17px); letter-spacing:.52em;
+  color:var(--muted); margin:16px 0 0; padding-left:.52em; opacity:0; animation:riseIn 1s ease .25s forwards; }
+.wel-rule{ width:34px; height:1px; background:var(--line2); margin:30px auto 0; opacity:0; animation:riseIn 1s ease .45s forwards; }
+.wel-tag{ font-family:var(--sans); font-size:13px; color:var(--dim); line-height:1.7; margin:26px auto 0;
+  max-width:460px; opacity:0; animation:riseIn 1s ease .6s forwards; }
+.wel .ghost-btn{ opacity:0; animation:riseIn 1s ease .85s forwards; }
+@media (max-width:640px){ .wel-tag{ font-size:12px; padding:0 8px; } }
 /* 손 조작 안내 */
 .hg{ max-width:75vw; margin:34px auto 0; text-align:left; display:flex; flex-direction:column; gap:2px; }
 .hg-row{ display:flex; align-items:center; gap:20px; padding:20px 4px; border-bottom:1px solid var(--line); }
@@ -780,7 +790,6 @@ html,body{
 .imx-stage canvas{ width:100%; height:100%; display:block; cursor:grab; touch-action:none; }
 .imx-stage canvas:active{ cursor:grabbing; }
 .imx-face{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; cursor:grab; touch-action:none; user-select:none; -webkit-user-drag:none; }
-.imx-model{ position:absolute; inset:0; width:100%; height:100%; background:transparent; --poster-color:transparent; cursor:grab; }
 .imx-stage.spinning{ cursor:grabbing; }
 .imx-stage.spinning .imx-face{ cursor:grabbing; }
 .imx-c{ position:absolute; width:13px; height:13px; border:1px solid var(--line2); pointer-events:none; }
@@ -2030,15 +2039,36 @@ window.WEAR_startEye = async function(){
     requestAnimationFrame(handCursorLoop);
   }
 
+  function stageWelcome(){
+    stageEnter(null,1);
+    // 표지에서는 단계 표시(01/12)와 뒤로가기를 숨긴다
+    var ind = document.getElementById('obIndicator');
+    if(ind) ind.style.display = 'none';
+    var bk = document.getElementById('obBack');
+    if(bk) bk.hidden = true;
+    setContent(
+      '<div class="wel">' +
+        '<h1 class="wel-mark eng">WEAR</h1>' +
+        '<div class="wel-sub eng">IN-SIGHT OS</div>' +
+        '<div class="wel-rule"></div>' +
+        '<div class="wel-tag">관측세의 시대를 위한 아이웨어 운영체제입니다.<br>보는 일이 값으로 환산되는 세계에 오신 것을 환영합니다.</div>' +
+        '<button class="ghost-btn" id="bWelcome">시작하기</button>' +
+      '</div>'
+    );
+    var go = document.getElementById('bWelcome');
+    if(go) go.onclick = function(){
+      if(ind) ind.style.display = '';   // 다음 화면부터 단계 표시 복구
+      stageCamera();
+    };
+  }
+
   function stageCamera(){
     stageEnter(null,1);
     setContent(
       '<div class="breathe-dot"></div>' +
       '<div class="voice-line">지금부터 시선을 스캔하겠습니다.</div>' +
       '<button class="ghost-btn" id="bCam">카메라를 허용합니다</button>' +
-      '<div class="cam-err" id="camErr"' + (envNote() ? '' : ' style="display:none;"') + '>' + envNote() + '</div>' +
-      '<div class="micro">이 단계는 건너뛸 수 없습니다. 카메라를 허용해야 다음으로 넘어갑니다.<br>' +
-      '영상은 기기 밖으로 나가지 않습니다. 눈꺼풀 개폐 값만 계산됩니다.</div>'
+      '<div class="cam-err" id="camErr"' + (envNote() ? '' : ' style="display:none;"') + '>' + envNote() + '</div>'
     );
     var btn = document.getElementById('bCam');
     var err = document.getElementById('camErr');
@@ -2292,7 +2322,7 @@ window.WEAR_startEye = async function(){
         '</div>' +
       '</div>' +
       '<div class="micro" id="hgState">' +
-        (hasHand ? '아래 버튼 위에서 손을 쥐어 넘어가 보세요.'
+        (hasHand ? ''
                  : '손 인식을 준비 중입니다. 지금은 끄덕임이나 음성으로 넘어가세요.') +
       '</div>' +
       '<button class="ghost-btn" id="bHand">계속</button>'
@@ -2307,7 +2337,7 @@ window.WEAR_startEye = async function(){
         if(window.EYE && window.EYE.handReady){
           clearInterval(iv);
           var st = document.getElementById('hgState');
-          if(st) st.textContent = '아래 버튼 위에서 손을 쥐어 넘어가 보세요.';
+          if(st) st.textContent = '';
         }
       }, 500);
       OB_DISPOSE.push(function(){ clearInterval(iv); });
@@ -3049,11 +3079,6 @@ window.WEAR_startEye = async function(){
             '<div class="imx-main">' +
               '<div class="imx-stage" id="imxStage">' +
                 '<img class="imx-face" id="imxFace" alt="" draggable="false" />' +
-                '<model-viewer class="imx-model" id="imxModel" style="display:none;" ' +
-                  'camera-controls disable-zoom disable-pan interaction-prompt="none" ' +
-                  'min-camera-orbit="auto 90deg auto" max-camera-orbit="auto 90deg auto" ' +
-                  'camera-orbit="0deg 90deg auto" shadow-intensity="0.7" exposure="1.05" ' +
-                  'environment-image="neutral" alt="8세 3D 얼굴 · 끌어서 돌려보기"></model-viewer>' +
                 '<i class="imx-c tl"></i><i class="imx-c tr"></i><i class="imx-c bl"></i><i class="imx-c br"></i>' +
                 '<div class="imx-badge eng" id="imxBadge"></div>' +
               '</div>' +
@@ -3100,39 +3125,53 @@ window.WEAR_startEye = async function(){
     // 턴어라운드: 나이별 24프레임(0~345°, 15° 간격). 좌우 드래그로 360° 회전.
     var ANGLES = 24, STEP_DEG = 360 / ANGLES;
     var faceImg = document.getElementById('imxFace');
-    var modelEl = document.getElementById('imxModel');
     var stageEl = document.getElementById('imxStage');
-    var MODEL_AGE = 8;              // 이 나이대만 사진 대신 3D 모델을 보여준다
-    var usingModel = false;         // 지금 화면이 3D 모델을 쓰는 중인지
     var curAge = null, angleIdx = 0, spinTimer = null;
     var frameCache = {};
 
     function pad2(n){ return String(n).padStart(2, '0'); }
     function pad3(n){ n = ((n % 360) + 360) % 360; return String(n).padStart(3, '0'); }
     function framePath(age, deg){ var a = pad2(age); return 'assets/turnaround/' + a + '/' + a + '_' + pad3(deg) + '.png'; }
+    // 스프라이트(합친 이미지) 방식 — 04세만 낱장, 나머지는 6x4 한 장에서 잘라 쓴다
+    var SPRITE_COLS = 6, SPRITE_ROWS = 4;
+    var SPRITE_AGES = { 8:1, 12:1, 18:1, 20:1, 24:1, 29:1, 39:1 };
+    var SPRITE = {};   // age -> [24개 프레임 dataURL] (또는 'loading')
+    function spritePath(age){ return 'assets/turnaround/' + pad2(age) + '_sheet.png'; }
     function preloadAge(age){
-      if(frameCache[age]) return;
-      var arr = [];
-      for(var k = 0; k < ANGLES; k++){ var im = new Image(); im.src = framePath(age, k * STEP_DEG); arr.push(im); }
-      frameCache[age] = arr;
-    }
-    function showFrame(){ if(curAge != null) faceImg.src = framePath(curAge, angleIdx * STEP_DEG); }
-    function setFace(e){
-      curAge = e.age;
-      usingModel = (modelEl && e.age === MODEL_AGE);
-      if(usingModel){
-        if(!modelEl.getAttribute('src')){ modelEl.setAttribute('src', 'assets/models/age08.glb'); }  // 처음 열 때만 71MB 로드
-        faceImg.style.display = 'none';
-        modelEl.style.display = 'block';
-        try{ modelEl.cameraOrbit = '0deg 90deg auto'; }catch(_){}   // 정면부터 시작
-        facing = 'front';
+      if(SPRITE_AGES[age]){
+        if(SPRITE[age]) return;
+        SPRITE[age] = 'loading';
+        var img = new Image();
+        img.onload = function(){
+          var fw = img.naturalWidth / SPRITE_COLS, fh = img.naturalHeight / SPRITE_ROWS;
+          var cv = document.createElement('canvas'); cv.width = fw; cv.height = fh;
+          var cx = cv.getContext('2d');
+          var arr = [];
+          for(var k = 0; k < ANGLES; k++){
+            var col = k % SPRITE_COLS, row = (k / SPRITE_COLS) | 0;
+            cx.clearRect(0, 0, fw, fh);
+            cx.drawImage(img, col*fw, row*fh, fw, fh, 0, 0, fw, fh);
+            arr.push(cv.toDataURL('image/png'));
+          }
+          SPRITE[age] = arr;
+          if(curAge === age) showFrame();   // 준비되면 현재 프레임을 다시 그린다
+        };
+        img.src = spritePath(age);
       } else {
-        if(modelEl) modelEl.style.display = 'none';
-        faceImg.style.display = '';
-        preloadAge(curAge);
-        showFrame();
+        if(frameCache[age]) return;
+        var a = [];
+        for(var k2 = 0; k2 < ANGLES; k2++){ var im = new Image(); im.src = framePath(age, k2 * STEP_DEG); a.push(im); }
+        frameCache[age] = a;
       }
     }
+    function showFrame(){
+      if(curAge == null) return;
+      var s = SPRITE[curAge];
+      if(s && s !== 'loading'){ faceImg.src = s[angleIdx]; }
+      else if(SPRITE_AGES[curAge]){ /* 스프라이트 로딩 중 — 준비되면 다시 그린다 */ }
+      else { faceImg.src = framePath(curAge, angleIdx * STEP_DEG); }
+    }
+    function setFace(e){ curAge = e.age; preloadAge(curAge); showFrame(); }
     function facingFromAngle(){
       var deg = ((angleIdx * STEP_DEG) % 360 + 360) % 360;
       return (deg > 90 && deg < 270) ? 'back' : 'front';
@@ -3158,9 +3197,8 @@ window.WEAR_startEye = async function(){
     // 드래그 스핀
     var dragging = false, lastX = 0, acc = 0, PX_PER_STEP = 14;
     function xOf(ev){ return ev.touches ? ev.touches[0].clientX : ev.clientX; }
-    function onDown(ev){ if(usingModel) return; dragging = true; acc = 0; lastX = xOf(ev); stageEl.classList.add('spinning'); if(spinTimer){ clearInterval(spinTimer); spinTimer = null; } ev.preventDefault(); }
+    function onDown(ev){ dragging = true; acc = 0; lastX = xOf(ev); stageEl.classList.add('spinning'); if(spinTimer){ clearInterval(spinTimer); spinTimer = null; } ev.preventDefault(); }
     function onMove(ev){
-      if(usingModel) return;
       if(!dragging) return;
       var x = xOf(ev); acc += (x - lastX); lastX = x;
       var moved = false;
@@ -3174,29 +3212,8 @@ window.WEAR_startEye = async function(){
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
 
-    // 3D 모델(8세)이 켜져 있으면 카메라를 앞/뒤로 돌린다 — 사진 프레임 회전과 별개
-    function modelFacing(){
-      try{
-        var th = modelEl.getCameraOrbit().theta * 180 / Math.PI;   // 라디안 → 도
-        th = ((th % 360) + 360) % 360;
-        return (th > 90 && th < 270) ? 'back' : 'front';
-      }catch(_){ return facing; }
-    }
-    if(modelEl){
-      modelEl.addEventListener('camera-change', function(){
-        if(!usingModel) return;
-        var f = modelFacing();
-        if(f !== facing){ facing = f; paintSide(); }
-      });
-    }
-
     // 앞↔뒤 반바퀴 애니메이션 (최단 방향)
     flipEl.onclick = function(){
-      if(usingModel){
-        var toBack = (modelFacing() === 'front');
-        try{ modelEl.cameraOrbit = (toBack ? '180deg' : '0deg') + ' 90deg auto'; }catch(_){}
-        return;
-      }
       var target = (facingFromAngle() === 'front') ? 12 : 0;   // 12 * 15° = 180°
       if(spinTimer) clearInterval(spinTimer);
       spinTimer = setInterval(function(){
@@ -3787,7 +3804,7 @@ window.WEAR_startEye = async function(){
     onboarding.classList.remove('fade-out');
     // 카메라는 이미 켜져 있으니(재진입) 조작을 바로 되살린다
     if(window.EYE && window.EYE.active){ NAV.on = true; voiceStart(); }
-    stageCamera();
+    stageWelcome();
   }
 
   /* =========================================================
