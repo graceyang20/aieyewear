@@ -1680,8 +1680,10 @@ window.OBSERVER_startEye = async function(){
     // 그래야 주먹을 위/아래로 끌어 '손으로 잡아당기는' 스크롤이 가능하다.
     EYE.hand.rawX = handSmX;
     EYE.hand.rawY = handSmY;
-    EYE.hand.x = grabOn ? frozenX : handSmX;
-    EYE.hand.y = grabOn ? frozenY : handSmY;
+    // 커서 좌표는 주먹을 쥔 뒤에도 실제 손끝을 계속 따라가야 한다.
+    // 클릭/드래그 기준점은 별도 상태(frozenX/frozenY)로 관리한다.
+    EYE.hand.x = handSmX;
+    EYE.hand.y = handSmY;
     EYE.hand.scrollY = cy;
 
     // grab 엣지 — 쥐는 순간 한 번만 클릭. 다시 클릭하려면 손을 완전히
@@ -2331,7 +2333,7 @@ window.OBSERVER_startEye = async function(){
   function handHover(px, py){
     var raw = (px >= 0 && py >= 0) ? document.elementFromPoint(px, py) : null;
     var t = (raw && raw.closest)
-      ? raw.closest('.dcx-seg, .vfx-row, .flt-row, .plan, .chip, .tab, #sysList li, [role="button"], button')
+      ? raw.closest('.dcx-seg, .vfx-row, .flt-row, .plan, .chip, .tab, .lg-node, .job-group-toggle, #sysList li, [role="button"], button')
       : null;
     if(t !== HAND_HOVER_EL){
       if(HAND_HOVER_EL) HAND_HOVER_EL.dispatchEvent(new MouseEvent('mouseleave', { bubbles:false }));
@@ -2367,6 +2369,28 @@ window.OBSERVER_startEye = async function(){
  }
     if(dy) target.scrollTop += dy;
  }
+  function handFindTarget(px, py){
+    var raw = document.elementFromPoint(px, py);
+    var t = raw && raw.closest ? raw.closest(
+      '.ep-btn, .epx, .bd-modal-x, .bd-demo-btn, .bd-demo-sw button, button, [role="button"], ' +
+      '.chip, .plan, .vfx-row, .flt-row, .lg-node, .job-group-toggle, .tab, ' +
+      '#sysList li, .panel-back, .speak-btn'
+    ) : null;
+    if(t) return t;
+
+    // 시야 오브젝트는 평상시 pointer-events:none이므로 elementFromPoint로 잡히지 않는다.
+    // 실제 DOM 위치를 직접 비교해 블러 대상의 손 클릭을 지원한다.
+    var ents = document.querySelectorAll('#world .ent.blurred');
+    for(var i=ents.length-1;i>=0;i--){
+      var el = ents[i];
+      if(!el || !el.parentNode) continue;
+      var r = el.getBoundingClientRect();
+      var pad = 28;
+      if(px >= r.left-pad && px <= r.right+pad && py >= r.top-pad && py <= r.bottom+pad) return el;
+    }
+    return null;
+  }
+
   // 주먹을 쥔 채로 위/아래로 끌면(핀치-드래그) 화면을 그 방향으로 스크롤한다 —
   // 실제로 화면을 손으로 잡아당기는 듯한 제스처. CTA/슬라이더에 스냅된 상태에서는
   // 시작하지 않는다(기존 클릭 동작을 그대로 유지하기 위함).
@@ -2392,10 +2416,31 @@ window.OBSERVER_startEye = async function(){
         return x >= r.left-pad && x <= r.right+pad && y >= r.top-pad && y <= r.bottom+pad;
       }
       var hitPad = 18;
+      var backHitPad = 58; // 뒤로 버튼은 팔을 크게 올리지 않아도 쉽게 집을 수 있도록 히트 영역을 넓힘
+      var settingsHitPad = 54; // 우측 상단 설정 아이콘도 충분히 넓은 손 히트 영역을 사용
+      var settingsBtn = document.getElementById('hudSettingsBtn');
       if(!HAND.slider){
-        if(NAV.primary && expandedHit(NAV.primary, rawPx, rawScreenPy, hitPad)) HAND.pinchButton = NAV.primary;
-        else if(NAV.back && expandedHit(NAV.back, rawPx, rawScreenPy, hitPad)) HAND.pinchButton = NAV.back;
-        else HAND.pinchButton = null;
+        // 핀치 시작 순간의 실제 손 좌표에서 선택 대상을 확정한다.
+        // 특히 나이/성별/직업 칩은 elementFromPoint 결과가 텍스트·컨테이너로 떨어질 수 있으므로
+        // 칩 자체의 rect를 먼저 검사해 빠른 손 클릭이 확실히 들어가게 한다.
+        var directTarget = null;
+        var directSelectors = '.chip, .job-group-toggle, .ghost-btn, .panel-back, .speak-btn, .tab, .plan, .vfx-row, .flt-row, .lg-node, #sysList li, [role="button"], button';
+        var directEls = document.querySelectorAll(directSelectors);
+        for(var di=0; di<directEls.length; di++){
+          var cand = directEls[di];
+          var pad = 18;
+          if(cand === document.getElementById('bProfile')) pad = 28;
+          if(expandedHit(cand, rawPx, rawScreenPy, pad)){ directTarget = cand; break; }
+        }
+        if(HAND.target && HAND.target.matches && HAND.target.matches('button, [role="button"], .panel-back, .speak-btn, .tab, .plan, .vfx-row, .flt-row, .lg-node, .job-group-toggle, .chip, #sysList li, .ent.blurred')){
+          // 실제 좌표에서 다른 대상을 명확히 찾지 못했을 때만 시각 스냅 대상을 보조적으로 사용한다.
+          HAND.pinchButton = directTarget || HAND.target;
+        } else if(settingsBtn && expandedHit(settingsBtn, rawPx, rawScreenPy, settingsHitPad)) HAND.pinchButton = settingsBtn;
+        else if(NAV.primary && expandedHit(NAV.primary, rawPx, rawScreenPy, hitPad)) HAND.pinchButton = NAV.primary;
+        else if(NAV.back && expandedHit(NAV.back, rawPx, rawScreenPy, backHitPad)) HAND.pinchButton = NAV.back;
+        else {
+          HAND.pinchButton = directTarget || handFindTarget(rawPx, rawScreenPy);
+        }
       } else {
         HAND.pinchButton = null;
       }
@@ -2414,27 +2459,30 @@ window.OBSERVER_startEye = async function(){
     } else if(!pinchNow && HAND.wasPinching){
       var clickTarget = HAND.pinchButton;
       var nowMs = Date.now();
-      var releaseHit = false;
-      if(!HAND.dragMoved && clickTarget){
-        var r = clickTarget.getBoundingClientRect();
-        var pad = 24;
-        releaseHit = rawPx >= r.left-pad && rawPx <= r.right+pad && rawScreenPy >= r.top-pad && rawScreenPy <= r.bottom+pad;
-      }
+      // 클릭은 '쥔 순간' 버튼 위였는지를 기준으로 한다.
+      // 손을 펴는 과정에서 몇 px 벗어나도 짧은 click이 취소되지 않게 한다.
+      // 반대로 긴 hold는 계속 GRAB/drag로만 처리한다.
       var pressDuration = HAND.fistStartAt ? (performance.now() - HAND.fistStartAt) : CLICK_GRAB_THRESHOLD;
-      var shouldClick = !HAND.dragMoved && !HAND.longGrab && pressDuration < CLICK_GRAB_THRESHOLD && !!clickTarget && releaseHit;
+      var shouldClick = !HAND.dragMoved && !HAND.longGrab && pressDuration < CLICK_GRAB_THRESHOLD && !!clickTarget;
       HAND.dragging = false; HAND.dragTarget = null; HAND.dragMoved = false; HAND.pinchButton = null;
       HAND.fistStartAt = 0; HAND.longGrab = false;
       if(shouldClick && nowMs - HAND.lastClickAt >= HAND.COOLDOWN){
         HAND.lastClickAt = nowMs;
-        if(clickTarget === NAV.back){ navGo('back'); }
+        if(clickTarget && clickTarget.id === 'hudSettingsBtn'){ clickTarget.click(); }
+        else if(clickTarget === NAV.back){ navGo('back'); }
         else if(clickTarget === NAV.primary){ if(!NAV.primary.disabled) navGo('next'); }
-        else {
-          var releaseEl = document.elementFromPoint(rawPx, rawScreenPy);
-          var clickable = releaseEl && releaseEl.closest && releaseEl.closest(
-            '.ep-btn, .epx, .bd-modal-x, .bd-demo-btn, .bd-demo-sw button, ' +
-            'button, [role="button"], .chip, .plan, .vfx-row, .flt-row, .tab, ' +
-            '.ent.blurred, #sysList li, .panel-back, .speak-btn');
-          if(clickable){ NAV.bypass = true; clickable.click(); NAV.bypass = false; }
+        else if(clickTarget && typeof clickTarget.click === 'function'){
+          // 핀치 시작 순간에 확정한 대상을 그대로 클릭한다.
+          // release 시점 elementFromPoint()를 다시 조회하지 않아 손가락이 펴지며
+          // 좌표가 흔들려도 버튼/Timeline/오브젝트 클릭이 취소되지 않는다.
+          NAV.bypass = true; clickTarget.click(); NAV.bypass = false;
+        } else {
+          // 마지막 안전망: 시야 화면의 실제 마우스 동작과 동일하게 world 클릭을 전달한다.
+          var world = document.getElementById('world');
+          var expNow = document.getElementById('experience');
+          var worldVisible = world && expNow && expNow.hidden && !inSystem && !inPanel &&
+            !world.querySelector('.ent-pop-wrap');
+          if(worldVisible){ world.click(); }
         }
       }
     }
@@ -2467,6 +2515,8 @@ window.OBSERVER_startEye = async function(){
       var targets = [];
       if(NAV.primary) targets.push(NAV.primary);
       if(NAV.back) targets.push(NAV.back);
+      var settingsTarget = document.getElementById('hudSettingsBtn');
+      if(settingsTarget && !inSystem && !inPanel) targets.push(settingsTarget);
       var best = null, bestD = 1e9, SNAP = 90;
       targets.forEach(function(el){
         var r = el.getBoundingClientRect();
@@ -2477,7 +2527,8 @@ window.OBSERVER_startEye = async function(){
         if(d < bestD){ bestD = d; best = { el:el, cx:cx, cy:cy, d:d }; }
  });
 
-      var snapped = best && bestD < SNAP;
+      var snapDist = (best && best.el === NAV.back) ? 220 : ((best && best.el === settingsTarget) ? 180 : SNAP);
+      var snapped = best && bestD < snapDist;
       // 슬라이더 영역이 CTA 스냅보다 우선 — 트랙 위로 커서를 끌어올린다
       if(onSlider){
         snapped = false; HAND.target = null; HAND.slider = slider;
@@ -2487,8 +2538,20 @@ window.OBSERVER_startEye = async function(){
         cur.classList.add('snap');
  } else {
         HAND.slider = null;
-        if(snapped){ px = px*0.45 + best.cx*0.55; py = py*0.45 + best.cy*0.55; }
-        HAND.target = snapped ? best.el : null;
+        if(E.hand.pinch && HAND.pinchButton){
+          // 핀치 시작 후에는 잡은 대상을 유지한다.
+          // 이렇게 해야 뒤로/다음/Timeline을 클릭하는 동안 커서가 오른쪽으로 튀지 않는다.
+          var pr = HAND.pinchButton.getBoundingClientRect();
+          px = pr.left + pr.width/2;
+          py = pr.top + pr.height/2;
+          HAND.target = HAND.pinchButton;
+          snapped = true;
+        } else if(snapped){
+          var snapStrength = (best.el === NAV.back) ? 0.82 : ((best.el === settingsTarget) ? 0.78 : 0.55);
+          px = px*(1-snapStrength) + best.cx*snapStrength;
+          py = py*(1-snapStrength) + best.cy*snapStrength;
+        }
+        HAND.target = HAND.pinchButton && E.hand.pinch ? HAND.pinchButton : (snapped ? best.el : null);
         cur.classList.toggle('snap', !!snapped);
  }
 
