@@ -730,7 +730,7 @@ html,body{
 #system{ position:absolute; top:0; right:0; bottom:0; left:0; overflow-y:auto; overflow-x:hidden; text-align:center; white-space:normal; background:#000000; opacity:0; pointer-events:none; transition:opacity .35s ease; z-index:20; }
 #system::before{ content:''; display:inline-block; height:100%; vertical-align:middle; width:0; }
 #system.active{ opacity:1; pointer-events:auto; }
-#sysMenu{ position:relative; display:inline-block; vertical-align:middle; white-space:normal; text-align:left; width:100%; max-width:440px; min-width:300px; padding:30px; }
+#sysMenu{ position:relative; display:inline-block; vertical-align:middle; white-space:normal; text-align:left; width:100%; max-width:440px; min-width:0; padding:30px; box-sizing:border-box; }
 #sysMenu ul{ list-style:none; margin:0; padding:0; border-top:1px solid var(--line); }
 #sysMenu li{ padding:18px 4px; border-bottom:1px solid var(--line); cursor:pointer; transition:background .15s; display:flex; align-items:baseline; gap:12px; }
 #sysMenu li .k{ font-family:var(--mono); font-size:var(--fs-lead); color:var(--text); font-weight:500; flex:none; }
@@ -1366,7 +1366,7 @@ button, input, textarea, select { font:inherit; }
   .ghost-btn{ min-height:44px; padding-inline:22px; }
   .chip{ min-height:42px; padding-inline:14px; }
   .chips.lg .chip{ padding-inline:18px; }
-  .imx-stage{ height:min(46dvh, 300px); min-height:220px; }
+  .imx-stage{ height:min(46dvh, 300px); min-height:190px; }
   .imx-era-top{ flex-wrap:wrap; gap:8px; }
   .imx-era-name{ font-size:20px; }
   .imx-era-dec{ font-size:15px; }
@@ -2143,7 +2143,22 @@ window.OBSERVER_startEye = async function(){
  }
 
   // 음성 인식 — 크롬 계열의 webkitSpeechRecognition
-  var VOICE = { rec:null, want:false, active:false };
+  var VOICE = { rec:null, want:false, active:false, retryTimer:null, retryCount:0, permissionKey:'wear_voice_permission_granted_v1', permissionRequested:false };
+  function voicePermissionGranted(){ try{ return localStorage.getItem(VOICE.permissionKey) === '1'; }catch(e){ return false; } }
+  function markVoicePermissionGranted(){ try{ localStorage.setItem(VOICE.permissionKey,'1'); }catch(e){} }
+  function ensureVoicePermission(done){
+    if(VOICE.permissionRequested || voicePermissionGranted()){ done(true); return; }
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ done(true); return; }
+    VOICE.permissionRequested = true;
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      try{ stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+      markVoicePermissionGranted();
+      done(true);
+    }).catch(function(){
+      VOICE.permissionRequested = false;
+      done(false);
+    });
+  }
   function voiceSupported(){
     return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
  }
@@ -2161,7 +2176,15 @@ window.OBSERVER_startEye = async function(){
     // 보안 컨텍스트가 아니면(예: file://) 마이크가 아예 안 열린다
     if(!window.isSecureContext && location.protocol !== 'http:'){
       vcSet('음성 불가 · localhost로 여세요', 'err'); return;
- }
+    }
+    // 첫 1회만 브라우저 마이크 권한을 요청하고, 허용되면 같은 사이트에서 다시 요청하지 않는다.
+    if(!voicePermissionGranted()){
+      ensureVoicePermission(function(ok){
+        if(ok) voiceStart();
+        else { VOICE.want = false; vcSet('마이크 권한 필요 · 눌러서 재시도', 'err'); }
+      });
+      return;
+    }
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     var rec = new SR();
     rec.lang = 'ko-KR'; rec.continuous = true; rec.interimResults = false;
@@ -2175,7 +2198,13 @@ window.OBSERVER_startEye = async function(){
         }
  }
  };
-    rec.onend = function(){ VOICE.active = false; if(VOICE.want) setTimeout(voiceStart, 250); };
+    rec.onend = function(){
+      VOICE.active = false;
+      if(!VOICE.want) return;
+      if(VOICE.retryTimer) clearTimeout(VOICE.retryTimer);
+      var delay = Math.min(4000, 400 * Math.pow(2, Math.min(3, VOICE.retryCount++)));
+      VOICE.retryTimer = setTimeout(function(){ VOICE.retryTimer = null; voiceStart(); }, delay);
+    };
     rec.onerror = function(e){
       VOICE.active = false;
       var err = e && e.error;
@@ -2190,12 +2219,14 @@ window.OBSERVER_startEye = async function(){
  }
  };
     try{
-      rec.start(); VOICE.rec = rec; VOICE.active = true; VOICE.want = true;
+      rec.start(); VOICE.rec = rec; VOICE.active = true; VOICE.want = true; VOICE.retryCount = 0;
       vcSet('음성 명령 듣는 중', 'listen');
  }catch(e){ VOICE.active = false; vcSet('음성 시작 실패 · 눌러서 재시도', 'err'); }
  }
   function voiceStop(){
     VOICE.want = false;
+    if(VOICE.retryTimer){ clearTimeout(VOICE.retryTimer); VOICE.retryTimer = null; }
+    VOICE.retryCount = 0;
     try{ if(VOICE.rec) VOICE.rec.stop(); }catch(e){}
     var chip = document.getElementById('vcChip');
     if(chip){ chip.classList.remove('listening'); chip.hidden = true; }
@@ -3417,7 +3448,7 @@ window.OBSERVER_startEye = async function(){
     function showFrame(){ if(curDir != null) faceImg.src = facePath(curDir, curRev ? (ANGLES - 1 - angleIdx) : angleIdx); }
     function setFace(e){
       curDir = e.dir; curRev = !!e.rev; stopSpin(); angleIdx = FRONT_IDX; angleF = FRONT_IDX;
-      preloadDir(curDir, true); showFrame();
+      preloadDir(curDir, false); showFrame();
       var h = document.getElementById('imxHint');
       if(h){ h.innerHTML = 'HOLD & SPIN'; }
  }

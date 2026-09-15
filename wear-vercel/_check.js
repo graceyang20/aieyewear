@@ -682,7 +682,7 @@ window.OBSERVER_startEye = async function(){
  }
 
   // 음성 인식 — 크롬 계열의 webkitSpeechRecognition
-  var VOICE = { rec:null, want:false, active:false };
+  var VOICE = { rec:null, want:false, active:false, retryTimer:null, retryCount:0 };
   function voiceSupported(){
     return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
  }
@@ -714,7 +714,13 @@ window.OBSERVER_startEye = async function(){
         }
  }
  };
-    rec.onend = function(){ VOICE.active = false; if(VOICE.want) setTimeout(voiceStart, 250); };
+    rec.onend = function(){
+      VOICE.active = false;
+      if(!VOICE.want) return;
+      if(VOICE.retryTimer) clearTimeout(VOICE.retryTimer);
+      var delay = Math.min(4000, 400 * Math.pow(2, Math.min(3, VOICE.retryCount++)));
+      VOICE.retryTimer = setTimeout(function(){ VOICE.retryTimer = null; voiceStart(); }, delay);
+    };
     rec.onerror = function(e){
       VOICE.active = false;
       var err = e && e.error;
@@ -729,12 +735,14 @@ window.OBSERVER_startEye = async function(){
  }
  };
     try{
-      rec.start(); VOICE.rec = rec; VOICE.active = true; VOICE.want = true;
+      rec.start(); VOICE.rec = rec; VOICE.active = true; VOICE.want = true; VOICE.retryCount = 0;
       vcSet('음성 명령 듣는 중', 'listen');
  }catch(e){ VOICE.active = false; vcSet('음성 시작 실패 · 눌러서 재시도', 'err'); }
  }
   function voiceStop(){
     VOICE.want = false;
+    if(VOICE.retryTimer){ clearTimeout(VOICE.retryTimer); VOICE.retryTimer = null; }
+    VOICE.retryCount = 0;
     try{ if(VOICE.rec) VOICE.rec.stop(); }catch(e){}
     var chip = document.getElementById('vcChip');
     if(chip){ chip.classList.remove('listening'); chip.hidden = true; }
@@ -775,7 +783,7 @@ window.OBSERVER_startEye = async function(){
      CTA(다음/뒤로) 근처에 가면 자석처럼 스냅되고, 집으면(pinchSeq↑)
      스냅된 버튼을 실행한다. 스냅 대상이 없으면 커서 아래 요소를 클릭. */
   var HAND = { pinchSeen:0, target:null, lastClickAt:0, COOLDOWN:800, slider:null,
-    wasPinching:false, dragging:false, dragStartY:0, dragScrollStart:0, dragTarget:null };
+    wasPinching:false, dragging:false, dragStartY:0, dragScrollStart:0, dragTarget:null, dragMoved:false, pinchStartY:0, pinchButton:null };
   // 손 커서 아래 요소에 마우스 hover 이벤트를 흘려보내, 마우스 hover 로 동작하는
   // UI(결정도 구간 강조 등)가 손동작에도 반응하게 한다.
   var HAND_HOVER_EL = null;
@@ -821,21 +829,45 @@ window.OBSERVER_startEye = async function(){
   // 주먹을 쥔 채로 위/아래로 끌면(핀치-드래그) 화면을 그 방향으로 스크롤한다 —
   // 실제로 화면을 손으로 잡아당기는 듯한 제스처. CTA/슬라이더에 스냅된 상태에서는
   // 시작하지 않는다(기존 클릭 동작을 그대로 유지하기 위함).
-  function handDragScroll(rawPy){
+  function handDragScroll(rawPy, px, py){
     var pinchNow = !!(window.EYE && window.EYE.hand && window.EYE.hand.pinch);
-    if(pinchNow && !HAND.wasPinching && !HAND.target && !HAND.slider){
+    if(pinchNow && !HAND.wasPinching){
       HAND.dragTarget = handScrollTarget();
       HAND.dragStartY = rawPy;
       HAND.dragScrollStart = HAND.dragTarget ? HAND.dragTarget.scrollTop : 0;
-      HAND.dragging = true;
- } else if(pinchNow && HAND.dragging && HAND.dragTarget){
-      var delta = (HAND.dragStartY - rawPy) * Math.max(1, window.innerHeight * 0.85);
-      HAND.dragTarget.scrollTop = HAND.dragScrollStart + delta;
- } else if(!pinchNow){
+      HAND.dragMoved = false;
+      HAND.pinchStartY = rawPy;
+      HAND.pinchButton = HAND.slider ? null : HAND.target;
       HAND.dragging = false;
- }
+    } else if(pinchNow && HAND.dragTarget){
+      var moved = Math.abs(rawPy - HAND.pinchStartY);
+      var threshold = Math.max(12, Math.min(30, window.innerHeight * 0.018));
+      if(moved > threshold && HAND.dragTarget.scrollHeight > HAND.dragTarget.clientHeight){
+        HAND.dragging = true;
+        HAND.dragMoved = true;
+        HAND.dragTarget.scrollTop = HAND.dragScrollStart + (HAND.dragStartY - rawPy) * Math.max(1, window.innerHeight * 0.85);
+      }
+    } else if(!pinchNow && HAND.wasPinching){
+      var shouldClick = !HAND.dragMoved && !!HAND.pinchButton;
+      var clickTarget = HAND.pinchButton;
+      var nowMs = Date.now();
+      HAND.dragging = false; HAND.dragTarget = null; HAND.dragMoved = false; HAND.pinchButton = null;
+      if(shouldClick && nowMs - HAND.lastClickAt >= HAND.COOLDOWN){
+        HAND.lastClickAt = nowMs;
+        if(clickTarget === NAV.back){ navGo('back'); }
+        else if(clickTarget === NAV.primary){ if(!NAV.primary.disabled) navGo('next'); }
+        else {
+          var releaseEl = document.elementFromPoint(px, py);
+          var clickable = releaseEl && releaseEl.closest && releaseEl.closest(
+            '.ep-btn, .epx, .bd-modal-x, .bd-demo-btn, .bd-demo-sw button, ' +
+            'button, [role="button"], .chip, .plan, .vfx-row, .flt-row, .tab, ' +
+            '.ent.blurred, #sysList li, .panel-back, .speak-btn');
+          if(clickable){ NAV.bypass = true; clickable.click(); NAV.bypass = false; }
+        }
+      }
+    }
     HAND.wasPinching = pinchNow;
- }
+  }
   function handCursorLoop(){
     var cur = document.getElementById('handCursor');
     var E = window.EYE;
@@ -894,52 +926,32 @@ window.OBSERVER_startEye = async function(){
       cur.classList.toggle('pinch', !!E.hand.pinch);
       handHover(px, py);   // 손 위치에 따라 hover UI 를 갱신
       handEdgeScroll(px, rawPy, vh);   // 화면 위/아래 가장자리 근처면 스크롤
-      handDragScroll(rawPy);           // 쥔 채로 끌면(핀치-드래그) 그 방향으로 스크롤
+      handDragScroll(rawPy, px, py);           // 쥔 채로 끌면(핀치-드래그) 그 방향으로 스크롤
 
-      // pinch 엣지 → 클릭/점프 (직후 쿨다운 동안은 무시)
+      // 핀치 시작은 CTA를 즉시 실행하지 않는다. 이동이 없으면 손을 펴는 순간 클릭하고, 충분히 이동하면 드래그 스크롤로 처리한다.
       if(E.pinchSeq > HAND.pinchSeen){
         HAND.pinchSeen = E.pinchSeq;
-        var nowMs = Date.now();
-        if(nowMs - HAND.lastClickAt < HAND.COOLDOWN){
-          /* 방금 조작함 — 손 펴는 도중의 재발화로 보고 무시 */
- } else if(HAND.slider){
-          // 슬라이더: 커서 x → 값. 트랙 비율을 그대로 값에 매핑하고 스텝에 맞춘다.
-          HAND.lastClickAt = nowMs;
-          var sr = HAND.slider.getBoundingClientRect();
-          var ratio = (px - sr.left) / (sr.width || 1);
-          ratio = Math.max(0, Math.min(1, ratio));
-          var mn = parseInt(HAND.slider.min,10), mx = parseInt(HAND.slider.max,10);
-          var stp = parseInt(HAND.slider.step,10) || 1;
-          var raw = mn + ratio * (mx - mn);
-          var val = mn + Math.round((raw - mn) / stp) * stp;
-          HAND.slider.value = val;
-          HAND.slider.dispatchEvent(new Event('input', { bubbles:true }));
-          HAND.slider.dispatchEvent(new Event('change', { bubbles:true }));
- } else {
-          HAND.lastClickAt = nowMs;
-          if(HAND.target && HAND.target === NAV.back){ if(NAV.back) navGo('back'); }
-          else if(HAND.target){ // 다음/기타 CTA
-            if(HAND.target === NAV.primary){ if(!NAV.primary.disabled) navGo('next'); }
-            else { NAV.bypass = true; HAND.target.click(); NAV.bypass = false; }
- } else {
-            // 스냅 대상이 없으면 커서 아래 실제 요소를 누른다(칩·토글·팝업 선택용).
-            // 팝업/월드/시스템은 onboarding 밖이라, 예전엔 손 클릭이 닿지 않았다.
-            var elu = document.elementFromPoint(px, py);
-            if(elu){
-              // 팝업(블러 오브젝트·예산 예시) 컨트롤을 최우선으로, 그다음 일반 클릭 대상
-              var clickable = elu.closest(
-                '.ep-btn, .epx, .bd-modal-x, .bd-demo-btn, .bd-demo-sw button, ' +
-                'button, [role="button"], .chip, .plan, .vfx-row, .flt-row, .tab, ' +
-                '.ent.blurred, #sysList li, .panel-back, .speak-btn');
-              if(clickable){ NAV.bypass = true; clickable.click(); NAV.bypass = false; }
-              // 시야(#world) 빈 공간을 손으로 집어도 SYSTEM은 열지 않는다 — 설정 버튼으로만 연다.
- }
- }
- }
- }
+        if(HAND.slider){
+          var nowMs = Date.now();
+          if(nowMs - HAND.lastClickAt >= HAND.COOLDOWN){
+            HAND.lastClickAt = nowMs;
+            var sr = HAND.slider.getBoundingClientRect();
+            var ratio = (px - sr.left) / (sr.width || 1);
+            ratio = Math.max(0, Math.min(1, ratio));
+            var mn = parseInt(HAND.slider.min,10), mx = parseInt(HAND.slider.max,10);
+            var stp = parseInt(HAND.slider.step,10) || 1;
+            var raw = mn + ratio * (mx - mn);
+            var val = mn + Math.round((raw - mn) / stp) * stp;
+            HAND.slider.value = val;
+            HAND.slider.dispatchEvent(new Event('input', { bubbles:true }));
+            HAND.slider.dispatchEvent(new Event('change', { bubbles:true }));
+            HAND.pinchButton = null;
+          }
+        }
+      }
  } else if(cur){
       cur.hidden = true; HAND.target = null; HAND.slider = null;
-      HAND.dragging = false; HAND.wasPinching = false;
+      HAND.dragging = false; HAND.wasPinching = false; HAND.dragTarget = null; HAND.dragMoved = false; HAND.pinchButton = null;
       handHover(-1, -1);   // 손이 사라지면 hover 해제
       if(E && E.pinchSeq) HAND.pinchSeen = E.pinchSeq;   // 손이 사라진 동안의 pinch는 무시
  }
@@ -1952,7 +1964,7 @@ window.OBSERVER_startEye = async function(){
     function showFrame(){ if(curDir != null) faceImg.src = facePath(curDir, curRev ? (ANGLES - 1 - angleIdx) : angleIdx); }
     function setFace(e){
       curDir = e.dir; curRev = !!e.rev; stopSpin(); angleIdx = FRONT_IDX; angleF = FRONT_IDX;
-      preloadDir(curDir, true); showFrame();
+      preloadDir(curDir, false); showFrame();
       var h = document.getElementById('imxHint');
       if(h){ h.innerHTML = 'HOLD & SPIN'; }
  }
