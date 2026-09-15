@@ -125,10 +125,10 @@ html,body{
 
 /* ---------- shared bits ---------- */
 .voice-line{ font-size:var(--title-size); font-weight:600; line-height:1.35;
-  color:var(--text); max-width:960px; margin:0 auto 18px; text-align:center; opacity:0; animation:riseIn .9s ease forwards; }
+  color:var(--text); max-width:min(64vw, 820px); margin:0 auto 18px; text-align:center; opacity:0; animation:riseIn .9s ease forwards; }
 .voice-line.dim{ color:var(--muted); font-size:var(--fs-lead); font-weight:400; line-height:1.7; filter:url(#tex); }
 @keyframes riseIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
-.micro{ font-size:var(--fs-body); color:var(--dim); text-align:center; margin-top:26px; max-width:630px; margin-left:auto; margin-right:auto; line-height:1.7; }
+.micro{ font-size:var(--fs-body); color:var(--dim); text-align:center; margin-top:26px; max-width:min(64vw, 560px); margin-left:auto; margin-right:auto; line-height:1.7; }
 /* welcome(표지) 화면 — 영문 워드마크는 --eng(GentleMonster→Archivo Narrow) */
 .wel{ text-align:center; }
 .wel-mark{ font-family:var(--eng); font-weight:700; font-size:96px; line-height:.9; color:var(--text); margin:0; opacity:0; animation:riseIn 1s ease forwards; }
@@ -160,7 +160,7 @@ html,body{
   40%{ height:16%; } 58%{ height:24%; } 80%{ height:6%; } 100%{ height:0%; }
 }
 /* 손 조작 안내 */
-.hg{ width:fit-content; max-width:75vw; margin:68px auto 0; text-align:left; display:flex; flex-direction:column; gap:2px; }
+.hg{ width:fit-content; max-width:min(64vw, 1100px); margin:68px auto 0; text-align:left; display:flex; flex-direction:column; gap:2px; }
 .hg-row{ display:flex; align-items:center; gap:20px; padding:20px 4px; border-bottom:1px solid var(--line); }
 .hg-row:last-child{ border-bottom:none; }
 .hg-ic{ flex:none; width:64px; height:56px; display:flex; align-items:center; justify-content:center; }
@@ -221,14 +221,14 @@ html,body{
 #onboarding.fade-out{ opacity:0; pointer-events:none; }
 #ob-content{
   display:inline-block; vertical-align:middle; white-space:normal; text-align:center;
-  width:100%; max-width:75vw; min-width:320px; padding:44px 10px;
+  width:100%; max-width:min(64vw, 1100px); min-width:320px; padding:44px 10px;
 }
 .breathe-dot{ width:6px; height:6px; border-radius:50%; background:var(--amber); margin:0 auto 40px; box-shadow:0 0 0 0 rgba(205,67,44,.4); animation:breathe 2.6s ease-in-out infinite; }
 @keyframes breathe{ 0%,100%{ box-shadow:0 0 0 0 rgba(205,67,44,.35);} 50%{ box-shadow:0 0 0 22px rgba(205,67,44,0);} }
 .case-illust{ width:210px; height:78px; border:1.4px solid var(--faint); border-radius:39px; margin:0 auto 34px; position:relative; }
 .case-illust::before{ content:''; position:absolute; left:16px; right:16px; top:50%; height:1px; background:var(--faint); opacity:.5; }
 .case-illust::after{ content:''; position:absolute; right:22px; top:50%; width:6px; height:6px; margin-top:-3px; border-radius:50%; background:var(--amber); box-shadow:0 0 0 8px rgba(205,67,44,.14); }
-.invoice{ max-width:75vw; min-width:320px; margin:20px auto 0; }
+.invoice{ max-width:min(64vw, 1100px); min-width:320px; margin:20px auto 0; }
 .invoice-row{ display:flex; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--line); font-size:var(--fs-body); }
 .invoice-row span:first-child{ color:var(--muted); }
 .invoice-row span:last-child{ font-family:var(--mono); color:var(--text); font-size:var(--fs-lead); }
@@ -240,7 +240,7 @@ html,body{
 .invoice-note{ text-align:right; font-size:var(--fs-body); color:var(--amber); margin:6px 0 4px; }
 .invoice-div{ height:1px; background:var(--line2); margin:10px 0 2px; }
 /* ---------- 결정도 — 계측 레일 ---------- */
-.dcx{ max-width:75vw; min-width:320px; margin:32px auto 0; text-align:left; }
+.dcx{ max-width:min(64vw, 1100px); min-width:320px; margin:32px auto 0; text-align:left; }
 .dcx .vfx-head{ margin:0 0 20px; }
 
 .dcx-caption{ font-size:var(--fs-body); font-weight:600; color:var(--muted); margin:26px 0 0; letter-spacing:.02em; }
@@ -301,7 +301,7 @@ html,body{
 #decLegend{ margin-top:13px; }
 
 
-.profile-form{ max-width:75vw; min-width:320px; margin:30px auto 0; text-align:center; }
+.profile-form{ max-width:min(64vw, 1100px); min-width:320px; margin:30px auto 0; text-align:center; }
 .field{ margin-bottom:22px; }
 .field-label{ font-size:var(--fs-body); color:var(--dim); margin-bottom:10px; text-align:center; }
 .chips{ font-size:0; text-align:center; }
@@ -315,12 +315,12 @@ html,body{
 .chip.on{ color:var(--amber); background:rgba(205,67,44,.10); }
 .chip:focus-visible{ outline:1px solid var(--amber); outline-offset:2px; }
 /* 한 페이지에 질문 하나만 있을 때 — 크게 */
-.profile-form.solo{ max-width:75vw; min-width:320px; margin-top:44px; }
+.profile-form.solo{ max-width:min(64vw, 1100px); min-width:320px; margin-top:44px; }
 .chips.lg .chip{ font-size:var(--fs-h3); padding:15px 32px; margin:0 5px 12px; }
 @media (max-width:560px){ .chips.lg .chip{ padding:13px 24px; } }
 
 /* ---------- 예산 슬라이더 ---------- */
-.bd-wrap{ max-width:75vw; min-width:320px; margin:36px auto 0; }
+.bd-wrap{ max-width:min(64vw, 1100px); min-width:320px; margin:36px auto 0; }
 .bd-amount{ font-family:var(--eng); font-weight:700; font-size:var(--fs-hero); line-height:1.05;
   color:var(--amber); text-align:center; transition:color .2s, font-size .2s; }
 .bd-amount.off{ color:var(--muted); font-size:var(--fs-display); }
@@ -412,7 +412,7 @@ html,body{
 #mirrorFlashFull span{ font-size:var(--fs-body); color:rgba(255,255,255,.25); margin-bottom:26px; }
 
 /* ---------- filter setup (onboarding + SHIELD) ---------- */
-.flt-wrap{ max-width:75vw; min-width:320px; margin:26px auto 0; text-align:left; }
+.flt-wrap{ max-width:min(64vw, 1100px); min-width:320px; margin:26px auto 0; text-align:left; }
 .flt-group-label{ font-size:var(--fs-body); color:var(--dim); margin:22px 0 8px; }
 .flt-list{ border-top:1px solid var(--line); }
 .flt-row{
@@ -435,7 +435,7 @@ html,body{
 .flt-row.locked:hover{ background:transparent; }
 
 /* ---------- 필터 스테이지 — 명세표 ---------- */
-.vfx{ max-width:75vw; min-width:320px; margin:36px auto 0; text-align:left; }
+.vfx{ max-width:min(64vw, 1100px); min-width:320px; margin:36px auto 0; text-align:left; }
 
 .vfx-head{ display:flex; align-items:center; gap:12px; }
 .vfx-kicker{ font-family:var(--eng); font-size:var(--fs-body); font-weight:600;
@@ -749,7 +749,7 @@ html,body{
 #sysPanel{ position:absolute; top:0; right:0; bottom:0; left:0; background:#000000; overflow:auto; text-align:center; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .3s ease; }
 #sysPanel::before{ content:''; display:inline-block; height:100%; vertical-align:middle; width:0; }
 #sysPanel.active{ opacity:1; pointer-events:auto; }
-.panel-inner{ display:inline-block; vertical-align:middle; white-space:normal; text-align:left; width:100%; min-width:680px; max-width:680px; padding:64px 40px 40px; }
+.panel-inner{ display:inline-block; vertical-align:middle; white-space:normal; text-align:left; width:100%; min-width:600px; max-width:600px; padding:64px 40px 40px; }
 .panel-title{ font-size:var(--title-size); font-weight:600; line-height:1.25; color:var(--text); margin-bottom:26px; }
 .panel-back{ position:absolute; top:26px; left:30px; font-size:var(--fs-body); color:var(--muted); cursor:pointer; z-index:2; }
 .panel-back:hover{ color:var(--amber); }
@@ -991,9 +991,8 @@ html,body{
 .dcx-seg.hov u{ color:rgba(0,0,0,.45); }
 
 /* ---------- 이미지 스캔 ---------- */
-/* 데이터가 많은 화면이라 다른 화면(75vw)보다 넓게 쓴다 */
-#ob-content:has(.imx){ max-width:92vw; }
-.imx{ max-width:1980px; margin:4px auto 0; text-align:left; position:relative; }
+#ob-content:has(.imx){ max-width:min(64vw, 1100px); }
+.imx{ max-width:min(64vw, 1100px); margin:4px auto 0; text-align:left; position:relative; }
 .imx-focus{ display:grid; grid-template-columns:minmax(0, 1fr) minmax(420px, 460px); gap:28px; align-items:start; position:relative; }
 .imx-detail{ min-width:0; padding:2px 2px 0 0; position:relative; align-self:start; max-height:none; overflow:visible; }
 .imx-main{ min-width:0; }
@@ -1223,7 +1222,7 @@ html,body{
 @media (max-width:560px){
   .imx-stage{ height:clamp(250px,44vh,340px); }
   .lifegraph{ padding-bottom:40px; }
-  .lg-svg{ transform:scaleY(.8); transform-origin:50% 0; margin-bottom:-20%; }
+  .lg-svg{ transform:none; margin-bottom:0; }
   .lg-node{ width:70px; margin-left:-35px; }
   .lg-stick{ bottom:50px; }
   .lg-yl.bot{ bottom:54px; }
@@ -1287,12 +1286,13 @@ button, input, textarea, select { font:inherit; }
   #onboarding, #sysPanel { overflow-x:hidden; }
   #ob-content{
     box-sizing:border-box;
-    max-width:none;
+    max-width:640px;
     min-width:0;
-    width:min(100%, 680px);
+    width:calc(100% - 24px);
+    margin-inline:auto;
     padding:calc(56px + env(safe-area-inset-top)) 18px calc(72px + env(safe-area-inset-bottom));
   }
-  #ob-content:has(.imx){ max-width:none; width:min(100%, 980px); padding-left:14px; padding-right:14px; }
+  #ob-content:has(.imx){ max-width:640px; width:calc(100% - 24px); padding-left:14px; padding-right:14px; }
   .hg, .invoice, .dcx, .profile-form, .profile-form.solo, .bd-wrap, .flt-wrap, .vfx{
     box-sizing:border-box;
     max-width:none;
@@ -1314,7 +1314,7 @@ button, input, textarea, select { font:inherit; }
   .panel-inner{ box-sizing:border-box; width:100%; max-width:680px; min-width:0; padding:calc(68px + env(safe-area-inset-top)) 18px calc(54px + env(safe-area-inset-bottom)); }
   .contract-cols{ gap:0; }
   .ring-family{ gap:16px; flex-wrap:wrap; }
-  .imx{ width:100%; max-width:none; }
+  .imx{ width:100%; max-width:620px; margin-inline:auto; }
   .imx-focus{ grid-template-columns:1fr; }
   .imx-stage{ width:100%; height:min(58dvh, 430px); min-height:250px; }
   .lifegraph{ overflow:hidden; }
@@ -3268,12 +3268,16 @@ window.OBSERVER_startEye = async function(){
       var cx=lgX(e.age), cy=lifeY(lifeScore(e));
       dots+='<circle class="lg-composite-dot" data-dot="'+i+'" cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="3.2"/>';
  });
-    return '<svg class="lg-svg" viewBox="0 0 '+LG_W+' '+LG_H+'" role="img" aria-label="나이대별 종합 인상 추이">'+
+    // 타임라인 그래프 자체의 세로 비율을 80%로 축소한다.
+    // 축소된 viewBox 안에 그래프 전체를 동일 비율로 스케일해 배치한다.
+    var LG_VIEW_H = LG_H * 0.8;
+    return '<svg class="lg-svg" viewBox="0 0 '+LG_W+' '+LG_VIEW_H+'" role="img" aria-label="나이대별 종합 인상 추이">'+
+      '<g transform="scale(1 .8)">'+
       grid+
       '<line class="lg-zero" x1="'+LG_L+'" y1="'+LG_AXIS+'" x2="'+(LG_W-LG_R)+'" y2="'+LG_AXIS+'"/>'+
       divs+xlabels+
       '<path class="lg-composite" d="'+linePath+'"/>'+dots+
-      '</svg>';
+      '</g></svg>';
  }
 
   function stageImageScan(){
