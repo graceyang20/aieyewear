@@ -946,7 +946,7 @@ html,body{
   *{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
 }
 @media (max-width:640px){
-  .voice-line{ font-size:var(--fs-lead); padding:0 8px; }
+  .voice-line{ padding:0 8px; }
   .contract-cols{ flex-direction:column; }
   .contract-cols > div{ border-right:none; border-bottom:1px solid var(--line); padding-bottom:14px; }
   .panel-inner{ padding:64px 24px 40px; }
@@ -1185,10 +1185,10 @@ html,body{
   .rdr-d{ display:none; }
   .rdr-v{ font-size:var(--fs-h3); width:34px; }
   .imx-era-name{ font-size:var(--fs-h1); }
-  .lifegraph{ padding-bottom:56px; }
+  .lifegraph{ padding-bottom:36px; }
   .lg-node{ width:76px; margin-left:-38px; }
-  .lg-stick{ bottom:56px; }
-  .lg-yl.bot{ bottom:60px; }
+  .lg-stick{ bottom:36px; }
+  .lg-yl.bot{ bottom:40px; }
   .lg-lab u{ font-size:var(--fs-body); }
   .lg-lab b{ font-size:var(--fs-body); }
   .lg-lab s{ font-size:var(--fs-body); }
@@ -1221,11 +1221,10 @@ html,body{
 }
 @media (max-width:560px){
   .imx-stage{ height:clamp(250px,44vh,340px); }
-  .lifegraph{ padding-bottom:40px; }
   .lg-svg{ transform:none; margin-bottom:0; }
   .lg-node{ width:70px; margin-left:-35px; }
-  .lg-stick{ bottom:50px; }
-  .lg-yl.bot{ bottom:54px; }
+  .lg-stick{ bottom:36px; }
+  .lg-yl.bot{ bottom:40px; }
 }
 
 /* ---------- GAZER — 공개 관측망 중계 ---------- */
@@ -1279,6 +1278,8 @@ html, body { width:100%; min-width:0; }
 #app { height:100dvh; min-height:100svh; }
 button, input, textarea, select { font:inherit; }
 @media (max-width:760px){
+  #onboarding::before{ display:none; }
+  #ob-content{ vertical-align:top; }
   :root{
     --title-size:clamp(28px, 8vw, 36px);
     --fs-hero:clamp(34px, 10vw, 44px);
@@ -1304,6 +1305,7 @@ button, input, textarea, select { font:inherit; }
   .wel-sub{ font-size:15px; }
   .micro{ max-width:100%; margin-top:18px; }
   .hg{ margin-top:38px; }
+  .ghost-btn{ flex:0 0 auto; width:max-content; max-width:100%; margin-bottom:18px; }
   .dcx-val{ font-size:clamp(76px, 23vw, 116px); }
   .dcx-big{ min-width:0; flex-wrap:wrap; }
   .dcx-band{ min-width:0; }
@@ -1329,10 +1331,38 @@ button, input, textarea, select { font:inherit; }
   .vc-chip{ bottom:calc(104px + env(safe-area-inset-bottom)); right:10px; }
   .calib-track{ left:16%; right:16%; }
 }
+@media (max-width:440px){
+  /* 440px 이하에서는 음성 상태 칩이 뷰포트를 덮지 않도록 실제 화면 폭 안에 고정한다. */
+  .vc-chip{
+    box-sizing:border-box;
+    left:auto;
+    right:12px;
+    width:auto;
+    max-width:calc(100vw - 24px);
+    min-width:0;
+    overflow:hidden;
+  }
+  .vc-chip .lbl{
+    min-width:0;
+    max-width:100%;
+    white-space:normal;
+    overflow-wrap:anywhere;
+    word-break:keep-all;
+  }
+  /* 440px 이하에서만 타이포를 한 단계 축소해 작은 화면에서 줄바꿈/버튼 겹침을 줄인다. */
+  :root{
+    --title-size:28px;
+    --fs-hero:38px;
+  }
+  .voice-line{ font-size:28px; line-height:1.45; }
+  .voice-line.dim{ font-size:14px; line-height:1.65; }
+  .panel-title{ font-size:28px; }
+  .imx-era-name{ font-size:20px; }
+}
 @media (max-width:420px){
   #ob-content{ padding-inline:14px; }
   .panel-inner{ padding-inline:14px; }
-  .voice-line{ font-size:15px; line-height:1.55; }
+  .voice-line{ font-size:24px; line-height:1.5; }
   .ghost-btn{ min-height:44px; padding-inline:22px; }
   .chip{ min-height:42px; padding-inline:14px; }
   .chips.lg .chip{ padding-inline:18px; }
@@ -2138,10 +2168,11 @@ window.OBSERVER_startEye = async function(){
     rec.onresult = function(ev){
       for(var i=ev.resultIndex; i<ev.results.length; i++){
         var t = (ev.results[i][0].transcript || '').replace(/\s/g,'');
-        if(/(뒤로|이전|취소|백)/.test(t)){ if(NAV.back) navGo('back'); return; }
-        if(/(다음|계속|시작|확인|넘어가|응|그래|네|예|오케이|오키|고)/.test(t)){
-          if(NAV.primary && !NAV.primary.disabled) navGo('next'); return;
- }
+        // 음성으로 화면을 자동 진행하지 않는다. 이동은 버튼(또는 명시적 손 클릭)으로만 한다.
+        // 음성 인식은 상태 표시/향후 확장용으로만 유지한다.
+        if(/(뒤로|이전|취소|백|다음|계속|시작|확인|넘어가|응|그래|네|예|오케이|오키|고)/.test(t)){
+          return;
+        }
  }
  };
     rec.onend = function(){ VOICE.active = false; if(VOICE.want) setTimeout(voiceStart, 250); };
@@ -2418,7 +2449,7 @@ window.OBSERVER_startEye = async function(){
           setTimeout(go, 100); return;
  }
         window.OBSERVER_startEye().then(function(ok){
-          if(ok){ navInit(); voiceStart(); stageObserver(); }
+          if(ok){ navInit(); stageObserver(); }
           else { fail((window.EYE && window.EYE.error) || '카메라를 열 수 없습니다.'); }
  }).catch(function(){ fail('카메라를 열 수 없습니다.'); });
  })();
@@ -4082,7 +4113,7 @@ window.OBSERVER_startEye = async function(){
     onboarding.style.display = 'block';
     onboarding.classList.remove('fade-out');
     // 카메라는 이미 켜져 있으니(재진입) 조작을 바로 되살린다
-    if(window.EYE && window.EYE.active){ NAV.on = true; voiceStart(); }
+    if(window.EYE && window.EYE.active){ NAV.on = true; }
     stageWelcome();
  }
 
