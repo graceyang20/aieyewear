@@ -974,7 +974,7 @@ html,body{
 }
 /* ---------- 온보딩 뒤로가기 ---------- */
 .ob-back{
-  position:fixed; top:22px; left:24px; z-index:30;
+  position:fixed; top:42px; left:24px; z-index:30;
   background:transparent; border:none; padding:6px 4px;
   font-family:var(--sans); font-size:var(--fs-body);
   color:var(--dim); cursor:pointer; transition:color .2s;
@@ -991,7 +991,7 @@ html,body{
 .ob-dot{ width:4px; height:4px; border-radius:0; background:var(--line2); transition:all .25s ease; }
 .ob-dot.on{ width:18px; border-radius:0; background:var(--amber); }
 .ob-dot.done{ background:var(--dim); }
-@media (max-width:640px){ .ob-back{ top:14px; left:14px; } .ob-indicator{ top:16px; } }
+@media (max-width:640px){ .ob-back{ top:34px; left:14px; } .ob-indicator{ top:16px; } }
 
 /* ---------- 두 번째 하이라이트 (호버) ---------- */
 .vfx-row.hov::before{ width:100%; background:rgba(140,143,137,.10); }
@@ -1006,7 +1006,7 @@ html,body{
 /* ---------- 이미지 스캔 ---------- */
 #ob-content:has(.imx){ max-width:min(64vw, 1100px); }
 .imx{ max-width:min(64vw, 1100px); margin:4px auto 0; text-align:left; position:relative; }
-.imx-focus{ display:grid; grid-template-columns:minmax(0, 1fr) minmax(420px, 460px); gap:28px; align-items:start; position:relative; }
+.imx-focus{ display:grid; grid-template-columns:minmax(0, 1fr) minmax(340px, 345px); gap:28px; align-items:start; position:relative; }
 .imx-detail{ min-width:0; padding:2px 2px 0 0; position:relative; align-self:start; max-height:none; overflow:visible; }
 .imx-main{ min-width:0; position:relative; }
 .imx-detail .imx-era{ margin-top:0; }
@@ -1139,10 +1139,10 @@ html,body{
 @media (max-width:560px){ .trait-summary{ grid-template-columns:1fr; column-gap:0; } }
 .trait-read{ padding:9px 0; }
 .trait-read-head{ display:flex; align-items:baseline; gap:10px; }
-.trait-read-head b{ font-size:calc(var(--fs-h2) - 4px); font-weight:600; color:var(--text); }
+.trait-read-head b{ font-size:calc(var(--fs-h2) - 6px); font-weight:600; color:var(--text); }
 .trait-read-head em{ font-family:var(--eng); font-style:normal; font-size:calc(var(--fs-body) - 4px); font-weight:700; color:var(--faint); }
 .trait-read-head .lean{ margin-left:auto; font-family:var(--eng); font-feature-settings:'tnum' 1;
-  font-size:calc(var(--fs-h2) - 4px); color:var(--amber); font-weight:700; }
+  font-size:calc(var(--fs-h2) - 6px); color:var(--amber); font-weight:700; }
 .trait-read-head .lean.mid{ color:var(--muted); font-weight:400; }
 .trait-meter{ position:relative; height:1px; background:var(--line2); margin:11px 0 9px; }
 .trait-meter .mid{ position:absolute; left:50%; top:-4px; width:1px; height:9px; background:var(--line2); }
@@ -2320,7 +2320,11 @@ window.OBSERVER_startEye = async function(){
      CTA(다음/뒤로) 근처에 가면 자석처럼 스냅되고, 집으면(pinchSeq↑)
      스냅된 버튼을 실행한다. 스냅 대상이 없으면 커서 아래 요소를 클릭. */
   var HAND = { pinchSeen:0, target:null, lastClickAt:0, COOLDOWN:800, slider:null,
-    wasPinching:false, dragging:false, dragStartY:0, dragScrollStart:0, dragTarget:null, dragMoved:false, pinchStartY:0, pinchButton:null };
+    wasPinching:false, dragging:false, dragStartY:0, dragScrollStart:0, dragTarget:null, dragMoved:false, pinchStartY:0, pinchButton:null,
+    fistStartAt:0, longGrab:false };
+  // 빠르게 쥐었다 놓기 = CLICK, 일정 시간 이상 유지 = GRAB.
+  // 버튼 클릭의 의도성을 확보하면서 긴 주먹 유지에는 기존 스크롤/잡기 동작을 준다.
+  var CLICK_GRAB_THRESHOLD = 450;
   // 손 커서 아래 요소에 마우스 hover 이벤트를 흘려보내, 마우스 hover 로 동작하는
   // UI(결정도 구간 강조 등)가 손동작에도 반응하게 한다.
   var HAND_HOVER_EL = null;
@@ -2371,29 +2375,55 @@ window.OBSERVER_startEye = async function(){
     var rawPx = (window.EYE && window.EYE.hand && window.EYE.hand.rawX != null) ? window.EYE.hand.rawX * window.innerWidth : px;
     var rawScreenPy = (window.EYE && window.EYE.hand && window.EYE.hand.rawY != null) ? window.EYE.hand.rawY * window.innerHeight : rawPy;
     if(pinchNow && !HAND.wasPinching){
+      HAND.fistStartAt = performance.now();
+      HAND.longGrab = false;
       HAND.dragTarget = handScrollTarget();
       HAND.dragStartY = rawScreenPy;
       HAND.dragScrollStart = HAND.dragTarget ? HAND.dragTarget.scrollTop : 0;
       HAND.dragMoved = false;
       HAND.pinchStartY = rawScreenPy;
-      // 자석 스냅은 시각 보조일 뿐, 클릭 판정은 반드시 '실제 손 좌표'로 한다.
+      // 자석 스냅은 시각 보조일 뿐, 클릭 판정은 반드시 실제 손 좌표에서 한다.
+      // 버튼은 얇은 글자 영역 때문에 놓치지 않도록 실제 rect를 14px 확장해 히트 테스트한다.
       var actualEl = document.elementFromPoint(rawPx, rawScreenPy);
       var actualBtn = actualEl && actualEl.closest ? actualEl.closest('.ghost-btn, #obBack') : null;
-      HAND.pinchButton = HAND.slider ? null : (actualBtn && (actualBtn === NAV.primary || actualBtn === NAV.back) ? actualBtn : null);
+      function expandedHit(el, x, y, pad){
+        if(!el || el.hidden || el.disabled) return false;
+        var r = el.getBoundingClientRect();
+        return x >= r.left-pad && x <= r.right+pad && y >= r.top-pad && y <= r.bottom+pad;
+      }
+      var hitPad = 18;
+      if(!HAND.slider){
+        if(NAV.primary && expandedHit(NAV.primary, rawPx, rawScreenPy, hitPad)) HAND.pinchButton = NAV.primary;
+        else if(NAV.back && expandedHit(NAV.back, rawPx, rawScreenPy, hitPad)) HAND.pinchButton = NAV.back;
+        else HAND.pinchButton = null;
+      } else {
+        HAND.pinchButton = null;
+      }
       HAND.dragging = false;
     } else if(pinchNow && HAND.dragTarget){
+      if(!HAND.longGrab && performance.now() - HAND.fistStartAt >= CLICK_GRAB_THRESHOLD){
+        HAND.longGrab = true;
+      }
       var moved = Math.abs(rawPy - HAND.pinchStartY);
       var threshold = Math.max(12, Math.min(30, window.innerHeight * 0.018));
-      if(moved > threshold && HAND.dragTarget.scrollHeight > HAND.dragTarget.clientHeight){
+      if(HAND.longGrab && moved > threshold && HAND.dragTarget.scrollHeight > HAND.dragTarget.clientHeight){
         HAND.dragging = true;
         HAND.dragMoved = true;
         HAND.dragTarget.scrollTop = HAND.dragScrollStart + (HAND.dragStartY - rawScreenPy) * Math.max(1, window.innerHeight * 0.85);
       }
     } else if(!pinchNow && HAND.wasPinching){
-      var shouldClick = !HAND.dragMoved && !!HAND.pinchButton;
       var clickTarget = HAND.pinchButton;
       var nowMs = Date.now();
+      var releaseHit = false;
+      if(!HAND.dragMoved && clickTarget){
+        var r = clickTarget.getBoundingClientRect();
+        var pad = 24;
+        releaseHit = rawPx >= r.left-pad && rawPx <= r.right+pad && rawScreenPy >= r.top-pad && rawScreenPy <= r.bottom+pad;
+      }
+      var pressDuration = HAND.fistStartAt ? (performance.now() - HAND.fistStartAt) : CLICK_GRAB_THRESHOLD;
+      var shouldClick = !HAND.dragMoved && !HAND.longGrab && pressDuration < CLICK_GRAB_THRESHOLD && !!clickTarget && releaseHit;
       HAND.dragging = false; HAND.dragTarget = null; HAND.dragMoved = false; HAND.pinchButton = null;
+      HAND.fistStartAt = 0; HAND.longGrab = false;
       if(shouldClick && nowMs - HAND.lastClickAt >= HAND.COOLDOWN){
         HAND.lastClickAt = nowMs;
         if(clickTarget === NAV.back){ navGo('back'); }
@@ -2465,9 +2495,9 @@ window.OBSERVER_startEye = async function(){
       cur.hidden = false;
       cur.style.left = px + 'px';
       cur.style.top  = py + 'px';
-      cur.classList.toggle('pinch', !!E.hand.pinch);
+      cur.classList.toggle('pinch', !!E.hand.pinch && !HAND.longGrab);
       cur.classList.toggle('drag', !!HAND.dragging);
-      cur.classList.toggle('grab', !!E.hand.pinch && !HAND.dragging);
+      cur.classList.toggle('grab', !!HAND.longGrab && !HAND.dragging);
       cur.classList.toggle('hover', !!HAND.target || !!HAND.slider);
       handHover(px, py);   // 손 위치에 따라 hover UI 를 갱신
       handEdgeScroll(px, rawPy, vh);   // 화면 위/아래 가장자리 근처면 스크롤
@@ -2498,6 +2528,7 @@ window.OBSERVER_startEye = async function(){
       cur.hidden = true; HAND.target = null; HAND.slider = null;
       cur.classList.remove('hover','grab','drag','pinch','snap');
       HAND.dragging = false; HAND.wasPinching = false; HAND.dragTarget = null; HAND.dragMoved = false; HAND.pinchButton = null;
+      HAND.fistStartAt = 0; HAND.longGrab = false;
       handHover(-1, -1);   // 손이 사라지면 hover 해제
       if(E && E.pinchSeq) HAND.pinchSeen = E.pinchSeq;   // 손이 사라진 동안의 pinch는 무시
  }
