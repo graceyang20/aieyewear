@@ -1073,7 +1073,7 @@ html,body{
 
 /* ---------- 라이프 타임라인 — 긍정/부정을 종합한 단일 인상선 ---------- */
 .lifegraph{ position:relative; margin-top:5px; padding-bottom:45px;
-  border-top:1px solid var(--line2); padding-top:16px; }
+  border-top:1px solid var(--line2); padding-top:0; }
 .lg-svg{ display:block; width:100%; height:auto; overflow:visible; }
 .lg-grid{ stroke:var(--line); stroke-width:.55; opacity:.32; }
 .lg-grid.major{ opacity:.62; stroke:var(--line2); }
@@ -1112,7 +1112,7 @@ html,body{
   background:transparent; border:none; padding:0; cursor:pointer;
   display:flex; flex-direction:column; justify-content:flex-end; align-items:stretch; }
 .lg-node.on{ background:linear-gradient(rgba(205,67,44,.05), transparent 62%); }
-.lg-lab{ display:block; text-align:center; padding:6px 2px 0; width:100%;
+.lg-lab{ display:block; text-align:center; padding:6px 2px 0; width:100%; transform:translateY(-8px);
   border-top:1px solid var(--line2); border-left:1px solid var(--line);
   transition:border-color .2s ease; }
 .lg-node:last-of-type .lg-lab{ border-right:1px solid var(--line); }
@@ -3472,7 +3472,7 @@ window.OBSERVER_startEye = async function(){
         '</div>' +
 
         '<div class="imx-timeline">' +
-          '<div class="imx-tr-label" style="margin:0 0 5px;">LIFE TIMELINE</div>' +
+          '<div class="imx-tr-label" style="margin:0;">LIFE TIMELINE</div>' +
           '<div class="lifegraph" id="lifeGraph">' +
             lifeGraphSvg() +
             nodesHtml +
@@ -3763,7 +3763,7 @@ window.OBSERVER_startEye = async function(){
       ]}
     ]},
     { key:'age', label:'연령', options:[
-      { v:'10', t:'10대' }, { v:'20', t:'20대' }, { v:'30', t:'30대' }, { v:'40', t:'40대' }, { v:'50', t:'50대' }, { v:'60plus', t:'60+' }
+      { v:'10', t:'10대' }, { v:'20', t:'20대' }, { v:'30', t:'30대' }, { v:'40', t:'40대' }, { v:'50', t:'50대' }, { v:'60plus', t:'60대 이상' }
     ]},
     { key:'sex', label:'성별', options:[
       { v:'f', t:'여성' }, { v:'m', t:'남성' }, { v:'n', t:'밝히지 않음' }
