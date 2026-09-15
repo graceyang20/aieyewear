@@ -212,8 +212,8 @@ html,body{
 
 
 /* ---------- prototype notice ---------- */
-.prototype-note{ position:fixed; left:50%; bottom:10px; transform:translateX(-50%); z-index:6; font-family:var(--mono); font-size:10px; line-height:1.4; letter-spacing:.02em; color:var(--faint); opacity:.72; pointer-events:none; white-space:nowrap; }
-@media (max-width:440px){ .prototype-note{ bottom:calc(10px + env(safe-area-inset-bottom)); font-size:9px; } }
+.prototype-note{ position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:25; font-family:var(--mono); font-size:10px; line-height:1.4; letter-spacing:.02em; color:var(--faint); opacity:.72; pointer-events:none; white-space:nowrap; }
+@media (max-width:440px){ .prototype-note{ bottom:calc(18px + env(safe-area-inset-bottom)); font-size:9px; } }
 
 /* ---------- onboarding ---------- */
 #onboarding{
@@ -1000,7 +1000,7 @@ html,body{
 .imx{ max-width:min(64vw, 1100px); margin:4px auto 0; text-align:left; position:relative; }
 .imx-focus{ display:grid; grid-template-columns:minmax(0, 1fr) minmax(420px, 460px); gap:28px; align-items:start; position:relative; }
 .imx-detail{ min-width:0; padding:2px 2px 0 0; position:relative; align-self:start; max-height:none; overflow:visible; }
-.imx-main{ min-width:0; }
+.imx-main{ min-width:0; position:relative; }
 .imx-detail .imx-era{ margin-top:0; }
 .imx-stage{ position:relative; width:100%; height:clamp(360px, 53vh, 510px); margin:0; }
 .imx-stage canvas{ width:100%; height:100%; display:block; cursor:grab; touch-action:none; }
@@ -1015,8 +1015,8 @@ html,body{
 .imx-c.br{ right:0; bottom:0; border-left:none; border-top:none; }
 .imx-badge{ position:absolute; left:24px; top:5px; font-size:var(--fs-body); font-weight:600; color:var(--dim); pointer-events:none; }
 .imx-badge b{ color:var(--amber); font-weight:600; }
-.imx-hint{ font-size:var(--fs-body); font-weight:600; color:var(--faint);
-  text-align:center; margin-top:-10px; }
+.imx-hint{ position:absolute; left:0; right:0; top:12px; z-index:6; font-size:var(--fs-body); font-weight:600; color:var(--faint);
+  text-align:center; margin:0; pointer-events:none; }
 
 /* ---------- 상단 고정 두상 ---------- */
 /* 스크롤해도 두상이 남아 있어야, 아래 타임라인을 누른 결과를 바로 볼 수 있다. */
@@ -1077,6 +1077,7 @@ html,body{
 .lg-top.on{ stroke:var(--amber); opacity:1; stroke-width:2.6; }
 .lg-riser{ stroke:var(--line2); stroke-width:1.1; stroke-dasharray:2 3; opacity:.55; }
 .lg-composite{ fill:none; stroke:#E8E8E2; stroke-width:2.2; stroke-linejoin:round; stroke-linecap:round; }
+.lg-composite.pred{ stroke-dasharray:5 5; }
 .lg-composite-dot{ fill:var(--bg); stroke:#E8E8E2; stroke-width:1.5; transition:fill .2s ease, stroke .2s ease; }
 .lg-composite-dot.on{ fill:var(--amber); stroke:var(--amber); stroke-width:2; }
 .lg-axis{ stroke:var(--line2); stroke-width:1; }
@@ -1166,7 +1167,7 @@ html,body{
 
 .imx-era{ margin-top:4px; }
 .imx-era-top{ display:flex; align-items:baseline; gap:12px; }
-.imx-timeline{ margin-top:2px; padding-top:8px; }
+.imx-timeline{ margin-top:2px; padding-top:8px; transform:translateY(-14px); }
 .imx-era-name{ font-size:var(--fs-h1); font-weight:600; color:var(--text); line-height:1.1; }
 .imx-era-dec{ font-family:var(--eng); font-weight:700; font-size:var(--fs-lead); color:var(--amber);
   font-feature-settings:'tnum' 1; }
@@ -1625,6 +1626,8 @@ window.OBSERVER_startEye = async function(){
   let handSmX = 0.5, handSmY = 0.5, gripSmX = 0.5, grabOn = false, handMiss = 0, armed = true;
   let frozenX = 0.5, frozenY = 0.5;
   const FOLD_ON = 3, FOLD_OFF = 2, REARM = 1;  // 쥐기 3↑, 풀림 2↓, 재장전은 완전히 펴야(≤1)
+  let foldCandidateFrames = 0, unfoldCandidateFrames = 0;
+  const FOLD_CONFIRM_FRAMES = 4, UNFOLD_CONFIRM_FRAMES = 2;
   function fingerFolded(lms, tipI, pipI, mcpI, wrist, span){
     // 끝(tip)이 중간마디(pip)보다 손목에 가까우면 접힌 것
     const dTip = Math.hypot(lms[tipI].x - wrist.x, lms[tipI].y - wrist.y);
@@ -1670,12 +1673,23 @@ window.OBSERVER_startEye = async function(){
     // grab 엣지 — 쥐는 순간 한 번만 클릭. 다시 클릭하려면 손을 완전히
     // 펴야(folded ≤ REARM) 재장전된다. 쥔 채로 부들거려도 재발화 없음.
     if(!grabOn && armed && folded >= FOLD_ON){
-      grabOn = true; armed = false;             // 재장전 해제 — 손을 펴기 전엔 다시 클릭 안 됨
+      foldCandidateFrames++;
+    } else {
+      foldCandidateFrames = 0;
+    }
+    if(!grabOn && armed && foldCandidateFrames >= FOLD_CONFIRM_FRAMES){
+      grabOn = true; armed = false;             // 여러 프레임 연속 확인 후에만 클릭/드래그 제스처 시작
       frozenX = handSmX; frozenY = handSmY;
       EYE.pinchSeq++;                           // 클릭 신호(이름은 유지)
- } else if(grabOn && folded <= FOLD_OFF){
-      grabOn = false;
- }
+    } else if(grabOn && folded <= FOLD_OFF){
+      unfoldCandidateFrames++;
+      if(unfoldCandidateFrames >= UNFOLD_CONFIRM_FRAMES){
+        grabOn = false;
+        unfoldCandidateFrames = 0;
+      }
+    } else {
+      unfoldCandidateFrames = 0;
+    }
     if(folded <= REARM) armed = true;           // 손을 충분히 펴면 다음 클릭 준비
     EYE.hand.pinch = grabOn;                    // 링을 조인 모양으로
  }
@@ -2344,7 +2358,10 @@ window.OBSERVER_startEye = async function(){
       HAND.dragScrollStart = HAND.dragTarget ? HAND.dragTarget.scrollTop : 0;
       HAND.dragMoved = false;
       HAND.pinchStartY = rawPy;
-      HAND.pinchButton = HAND.slider ? null : HAND.target;
+      // CTA 자석 스냅은 시각 보조용만 사용하고, 실제 손 좌표가 버튼 위일 때만 클릭 허용
+      var actualEl = document.elementFromPoint(px, rawPy);
+      var actualBtn = actualEl && actualEl.closest ? actualEl.closest('.ghost-btn, #obBack') : null;
+      HAND.pinchButton = HAND.slider ? null : (actualBtn && (actualBtn === NAV.primary || actualBtn === NAV.back) ? actualBtn : null);
       HAND.dragging = false;
     } else if(pinchNow && HAND.dragTarget){
       var moved = Math.abs(rawPy - HAND.pinchStartY);
@@ -2364,7 +2381,7 @@ window.OBSERVER_startEye = async function(){
         if(clickTarget === NAV.back){ navGo('back'); }
         else if(clickTarget === NAV.primary){ if(!NAV.primary.disabled) navGo('next'); }
         else {
-          var releaseEl = document.elementFromPoint(px, py);
+          var releaseEl = document.elementFromPoint(px, rawPy);
           var clickable = releaseEl && releaseEl.closest && releaseEl.closest(
             '.ep-btn, .epx, .bd-modal-x, .bd-demo-btn, .bd-demo-sw button, ' +
             'button, [role="button"], .chip, .plan, .vfx-row, .flt-row, .tab, ' +
@@ -3029,7 +3046,7 @@ window.OBSERVER_startEye = async function(){
            ['PERMANENT','영구화',4],['RATED','평점화',3],['SELF-EDITING','자기검열',3],['LEAKED','유출',3]] },
 
     { code:'GROUP 03', range:'20—29', name:'SETTLED', dir:'20-29', dec:0.55,
-      ym:'20—29세', age:25, pv:58, nv:51,
+      ym:'20—29세 (현재)', age:25, pv:58, nv:51,
       line:'하나의 안정적인 형태를 갖게 된 상태',
       M:{ len:1.03, jaw:1.00, cheek:1.00, brow:0.95, nose:1.00, skull:1.00 },
       read:[59, 53, 64, 52],
@@ -3321,9 +3338,11 @@ window.OBSERVER_startEye = async function(){
   function lgPct(age){ return (lgX(age)/LG_W*100).toFixed(3) + '%'; }
   function lifeScore(e){ return e.pv - e.nv; }
   function lifeY(score){ return LG_AXIS - (score * 0.72); }
-  function denseLifePoints(){
+  function denseLifePoints(minAge,maxAge){
     var out=[];
-    for(var age=4; age<=39; age++){
+    minAge = (typeof minAge==='number') ? minAge : 4;
+    maxAge = (typeof maxAge==='number') ? maxAge : 39;
+    for(var age=minAge; age<=maxAge; age++){
       var left=IMG_ERAS[0], right=IMG_ERAS[IMG_ERAS.length-1];
       for(var i=0;i<IMG_ERAS.length-1;i++){
         if(age>=IMG_ERAS[i].age && age<=IMG_ERAS[i+1].age){ left=IMG_ERAS[i]; right=IMG_ERAS[i+1]; break; }
@@ -3363,7 +3382,8 @@ window.OBSERVER_startEye = async function(){
       xlabels+='<text x="'+x+'" y="'+(LG_H-20)+'" text-anchor="middle" fill="#6D706B" font-size="7.5" font-family="var(--eng)" font-weight="600">'+age+'</text>';
  });
     // 실제 그래프처럼 — 구간 안에서도 높낮이가 이어지는 곡선(면 채움 없음)
-    var linePath = smoothPath(denseLifePoints());
+    var linePath = smoothPath(denseLifePoints(4,30));
+    var predLinePath = smoothPath(denseLifePoints(30,39));
     var dots='';
     eras.forEach(function(e,i){
       var cx=lgX(e.age), cy=lifeY(lifeScore(e));
@@ -3377,7 +3397,8 @@ window.OBSERVER_startEye = async function(){
       grid+
       '<line class="lg-zero" x1="'+LG_L+'" y1="'+LG_AXIS+'" x2="'+(LG_W-LG_R)+'" y2="'+LG_AXIS+'"/>'+
       divs+xlabels+
-      '<path class="lg-composite" d="'+linePath+'"/>'+dots+
+      '<path class="lg-composite" d="'+linePath+'"/>'+
+      '<path class="lg-composite pred" d="'+predLinePath+'"/>'+dots+
       '</g></svg>';
  }
 
