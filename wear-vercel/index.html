@@ -1678,6 +1678,8 @@ window.OBSERVER_startEye = async function(){
     EYE.hand.present = true;
     // 클릭 커서는 주먹을 쥔 순간 고정하지만, 스크롤용 Y 좌표는 계속 갱신한다.
     // 그래야 주먹을 위/아래로 끌어 '손으로 잡아당기는' 스크롤이 가능하다.
+    EYE.hand.rawX = handSmX;
+    EYE.hand.rawY = handSmY;
     EYE.hand.x = grabOn ? frozenX : handSmX;
     EYE.hand.y = grabOn ? frozenY : handSmY;
     EYE.hand.scrollY = cy;
@@ -2366,14 +2368,16 @@ window.OBSERVER_startEye = async function(){
   // 시작하지 않는다(기존 클릭 동작을 그대로 유지하기 위함).
   function handDragScroll(rawPy, px, py){
     var pinchNow = !!(window.EYE && window.EYE.hand && window.EYE.hand.pinch);
+    var rawPx = (window.EYE && window.EYE.hand && window.EYE.hand.rawX != null) ? window.EYE.hand.rawX * window.innerWidth : px;
+    var rawScreenPy = (window.EYE && window.EYE.hand && window.EYE.hand.rawY != null) ? window.EYE.hand.rawY * window.innerHeight : rawPy;
     if(pinchNow && !HAND.wasPinching){
       HAND.dragTarget = handScrollTarget();
-      HAND.dragStartY = rawPy;
+      HAND.dragStartY = rawScreenPy;
       HAND.dragScrollStart = HAND.dragTarget ? HAND.dragTarget.scrollTop : 0;
       HAND.dragMoved = false;
-      HAND.pinchStartY = rawPy;
-      // CTA 자석 스냅은 시각 보조용만 사용하고, 실제 손 좌표가 버튼 위일 때만 클릭 허용
-      var actualEl = document.elementFromPoint(px, rawPy);
+      HAND.pinchStartY = rawScreenPy;
+      // 자석 스냅은 시각 보조일 뿐, 클릭 판정은 반드시 '실제 손 좌표'로 한다.
+      var actualEl = document.elementFromPoint(rawPx, rawScreenPy);
       var actualBtn = actualEl && actualEl.closest ? actualEl.closest('.ghost-btn, #obBack') : null;
       HAND.pinchButton = HAND.slider ? null : (actualBtn && (actualBtn === NAV.primary || actualBtn === NAV.back) ? actualBtn : null);
       HAND.dragging = false;
@@ -2383,7 +2387,7 @@ window.OBSERVER_startEye = async function(){
       if(moved > threshold && HAND.dragTarget.scrollHeight > HAND.dragTarget.clientHeight){
         HAND.dragging = true;
         HAND.dragMoved = true;
-        HAND.dragTarget.scrollTop = HAND.dragScrollStart + (HAND.dragStartY - rawPy) * Math.max(1, window.innerHeight * 0.85);
+        HAND.dragTarget.scrollTop = HAND.dragScrollStart + (HAND.dragStartY - rawScreenPy) * Math.max(1, window.innerHeight * 0.85);
       }
     } else if(!pinchNow && HAND.wasPinching){
       var shouldClick = !HAND.dragMoved && !!HAND.pinchButton;
@@ -2395,7 +2399,7 @@ window.OBSERVER_startEye = async function(){
         if(clickTarget === NAV.back){ navGo('back'); }
         else if(clickTarget === NAV.primary){ if(!NAV.primary.disabled) navGo('next'); }
         else {
-          var releaseEl = document.elementFromPoint(px, rawPy);
+          var releaseEl = document.elementFromPoint(rawPx, rawScreenPy);
           var clickable = releaseEl && releaseEl.closest && releaseEl.closest(
             '.ep-btn, .epx, .bd-modal-x, .bd-demo-btn, .bd-demo-sw button, ' +
             'button, [role="button"], .chip, .plan, .vfx-row, .flt-row, .tab, ' +
