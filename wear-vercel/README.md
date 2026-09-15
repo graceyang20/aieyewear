@@ -1,4 +1,4 @@
-# WEAR In-Sight OS — CCTV
+# OBSERVER In-Sight OS — CCTV
 
 관측세가 부과되는 세계를 가정한 스펙큘러티브 프로토타입. 실제 국가교통정보센터(ITS)
 공개 CCTV(HLS) 스트림을 같은 출처 프록시로 끌어와 "관측점"으로 보여준다.
