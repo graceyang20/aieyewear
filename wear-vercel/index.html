@@ -210,6 +210,11 @@ html,body{
 .vc-chip.listening .lbl{ color:var(--amber); }
 .amount{ font-family:var(--mono); color:var(--amber); font-size:var(--fs-hero); text-align:center; margin:18px 0 6px; font-weight:500; }
 
+
+/* ---------- prototype notice ---------- */
+.prototype-note{ position:fixed; left:50%; bottom:10px; transform:translateX(-50%); z-index:6; font-family:var(--mono); font-size:10px; line-height:1.4; letter-spacing:.02em; color:var(--faint); opacity:.72; pointer-events:none; white-space:nowrap; }
+@media (max-width:440px){ .prototype-note{ bottom:calc(10px + env(safe-area-inset-bottom)); font-size:9px; } }
+
 /* ---------- onboarding ---------- */
 #onboarding{
   position:absolute; top:0; right:0; bottom:0; left:0; overflow:auto;
@@ -1378,6 +1383,11 @@ button, input, textarea, select { font:inherit; }
   .rdr-k{ width:68px; }
   .lg-node{ width:58px; margin-left:-29px; }
 }
+
+/* Keep the prototype canvas at a 600px minimum content width.
+   The browser viewport may become narrower, but the app itself does not compress below this width. */
+html, body{ min-width:600px; }
+#app{ min-width:600px; }
 </style>
 </head>
 <body>
@@ -1458,6 +1468,7 @@ button, input, textarea, select { font:inherit; }
     </div>
 
     <div class="corner-brand" id="cornerBrand"><span>IN-SIGHT OS</span><span>OBSERVER</span></div>
+    <div class="prototype-note" id="prototypeNote">PC 환경에서 실행해주세요</div>
   </main>
 
   <video id="camFeed" playsinline muted autoplay preload="none"></video>
