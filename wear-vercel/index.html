@@ -844,7 +844,6 @@ html,body{
 #handCursor.grab .hc-ring{ width:19px; height:19px; margin:-9.5px 0 0 -9.5px; border-color:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.08); }
 #handCursor.drag .hc-ring{ width:46px; height:46px; margin:-23px 0 0 -23px; border-color:var(--amber); box-shadow:0 0 0 5px rgba(205,67,44,.12); }
 #handCursor::before{ content:''; position:absolute; left:18px; top:24px; transform:translateY(-50%); padding:3px 6px; border:1px solid var(--line2); border-radius:999px; background:rgba(0,0,0,.72); color:var(--muted); font:600 9px/1 var(--eng); letter-spacing:.06em; opacity:0; transition:opacity .14s ease, transform .14s ease; white-space:nowrap; }
-#handCursor.hover::before{ content:'HOVER'; opacity:1; transform:translate(0,-50%); }
 #handCursor.grab::before{ content:'GRAB'; opacity:1; color:#fff; border-color:rgba(255,255,255,.25); transform:translate(0,-50%); }
 #handCursor.drag::before{ content:'DRAG'; opacity:1; color:var(--amber); border-color:var(--amber-dim); transform:translate(0,-50%); }
 
@@ -1635,8 +1634,9 @@ window.OBSERVER_startEye = async function(){
   // 접힌 것으로 보고, 3개 이상 접히면 grab 으로 판정한다. 펼친 손과 뚜렷이
   // 구분돼 오탐이 거의 없다. 손 크기로 정규화해 원근에 강인하게.
   // 쥐는 순간 손끝이 흔들리므로, grab 이 시작되면 커서를 그 자리에 고정한다.
-  let handSmX = 0.5, handSmY = 0.5, gripSmX = 0.5, grabOn = false, handMiss = 0, armed = true;
+  let handSmX = 0.5, handSmY = 0.5, scrollSmY = 0.5, gripSmX = 0.5, grabOn = false, handMiss = 0, armed = true;
   let frozenX = 0.5, frozenY = 0.5;
+  let foldAnchorX = 0.5, foldAnchorY = 0.5;
   const FOLD_ON = 3, FOLD_OFF = 2, REARM = 1;  // 쥐기 3↑, 풀림 2↓, 재장전은 완전히 펴야(≤1)
   let foldCandidateFrames = 0, unfoldCandidateFrames = 0;
   const FOLD_CONFIRM_FRAMES = 4, UNFOLD_CONFIRM_FRAMES = 2;
@@ -1652,7 +1652,7 @@ window.OBSERVER_startEye = async function(){
     try{ hres = handLm.detectForVideo(video, now); }catch(e){ return; }
     const lms = hres && hres.landmarks && hres.landmarks[0];
     if(!lms){
-      if(++handMiss > 6){ EYE.hand.present = false; grabOn = false; armed = true; EYE.hand.pinch = false; }
+      if(++handMiss > 6){ EYE.hand.present = false; grabOn = false; armed = true; EYE.hand.pinch = false; EYE.hand.clickX = null; EYE.hand.clickY = null; }
       return;
  }
     handMiss = 0;
@@ -1668,23 +1668,37 @@ window.OBSERVER_startEye = async function(){
 
     // 커서 좌표 — x 반전(거울), 살짝 스무딩. 단, grab 중이면 고정.
     const cx = 1 - tip.x, cy = tip.y;
+    // 실제 스크롤용 Y는 항상 손끝을 따라가되, 화면 커서는 주먹을 닫는 순간의 앵커를 유지한다.
+    scrollSmY = scrollSmY * 0.5 + cy * 0.5;
     if(!grabOn){
       handSmX = handSmX * 0.5 + cx * 0.5;
       handSmY = handSmY * 0.5 + cy * 0.5;
+      if(foldCandidateFrames === 0){ foldAnchorX = handSmX; foldAnchorY = handSmY; }
  }
     // 주먹을 쥔 채로도 계속 갱신되는 좌우 위치 — '쥐고 좌우로' 회전에 쓴다.
     gripSmX = gripSmX * 0.6 + cx * 0.4;
     EYE.hand.gx = gripSmX;
     EYE.hand.present = true;
+    if(!grabOn && foldCandidateFrames === 0){ EYE.hand.clickX = handSmX; EYE.hand.clickY = handSmY; }
     // 클릭 커서는 주먹을 쥔 순간 고정하지만, 스크롤용 Y 좌표는 계속 갱신한다.
     // 그래야 주먹을 위/아래로 끌어 '손으로 잡아당기는' 스크롤이 가능하다.
     EYE.hand.rawX = handSmX;
     EYE.hand.rawY = handSmY;
+    // 클릭 판정용 앵커는 주먹이 닫히기 직전의 커서 위치를 별도로 보존한다.
+    // 검지 끝 landmark가 손바닥 쪽으로 내려가는 순간에도 클릭 대상 좌표가 흔들리지 않는다.
+    if(EYE.hand.clickX == null) EYE.hand.clickX = handSmX;
+    if(EYE.hand.clickY == null) EYE.hand.clickY = handSmY;
     // 커서 좌표는 주먹을 쥔 뒤에도 실제 손끝을 계속 따라가야 한다.
     // 클릭/드래그 기준점은 별도 상태(frozenX/frozenY)로 관리한다.
-    EYE.hand.x = handSmX;
-    EYE.hand.y = handSmY;
-    EYE.hand.scrollY = cy;
+    if(grabOn){
+      // 주먹을 닫는 동안 손끝 landmark가 손바닥 쪽으로 내려가는 현상을 커서에 반영하지 않는다.
+      EYE.hand.x = frozenX;
+      EYE.hand.y = frozenY;
+    } else {
+      EYE.hand.x = handSmX;
+      EYE.hand.y = handSmY;
+    }
+    EYE.hand.scrollY = scrollSmY;
 
     // grab 엣지 — 쥐는 순간 한 번만 클릭. 다시 클릭하려면 손을 완전히
     // 펴야(folded ≤ REARM) 재장전된다. 쥔 채로 부들거려도 재발화 없음.
@@ -1695,7 +1709,9 @@ window.OBSERVER_startEye = async function(){
     }
     if(!grabOn && armed && foldCandidateFrames >= FOLD_CONFIRM_FRAMES){
       grabOn = true; armed = false;             // 여러 프레임 연속 확인 후에만 클릭/드래그 제스처 시작
-      frozenX = handSmX; frozenY = handSmY;
+      frozenX = foldAnchorX; frozenY = foldAnchorY;
+      EYE.hand.clickX = frozenX; EYE.hand.clickY = frozenY;
+      handSmX = frozenX; handSmY = frozenY;
       EYE.pinchSeq++;                           // 클릭 신호(이름은 유지)
     } else if(grabOn && folded <= FOLD_OFF){
       unfoldCandidateFrames++;
@@ -2311,7 +2327,7 @@ window.OBSERVER_startEye = async function(){
       navGo(isBack ? 'back' : 'next', b);
  }, true);
     navPollNod();
-    handCursorLoop();
+    if(!HAND_LOOP_ON) handCursorLoop();   // 재진입 시 루프가 중복으로 돌지 않게 한다
     if(!voiceSupported()){
       vcSet('음성 미지원', 'off');
  }
@@ -2321,7 +2337,7 @@ window.OBSERVER_startEye = async function(){
      EYE.hand(검지 끝, 정규화 좌표)를 화면 좌표로 옮겨 커서를 그린다.
      CTA(다음/뒤로) 근처에 가면 자석처럼 스냅되고, 집으면(pinchSeq↑)
      스냅된 버튼을 실행한다. 스냅 대상이 없으면 커서 아래 요소를 클릭. */
-  var HAND = { pinchSeen:0, target:null, lastClickAt:0, COOLDOWN:800, slider:null,
+  var HAND = { pinchSeen:0, target:null, lastClickAt:0, COOLDOWN:320, slider:null,
     wasPinching:false, dragging:false, dragStartY:0, dragScrollStart:0, dragTarget:null, dragMoved:false, pinchStartY:0, pinchButton:null,
     fistStartAt:0, longGrab:false };
   // 빠르게 쥐었다 놓기 = CLICK, 일정 시간 이상 유지 = GRAB.
@@ -2330,6 +2346,24 @@ window.OBSERVER_startEye = async function(){
   // 손 커서 아래 요소에 마우스 hover 이벤트를 흘려보내, 마우스 hover 로 동작하는
   // UI(결정도 구간 강조 등)가 손동작에도 반응하게 한다.
   var HAND_HOVER_EL = null;
+  // 손 히트 테스트는 getBoundingClientRect()로 직접 좌표를 비교하므로,
+  // 화면에 보이지 않는 레이어(#system / #sysPanel 은 닫혀 있어도 display:none 이 아니라
+  // opacity:0 + pointer-events:none 인 채 레이아웃에 그대로 남는다)의 요소까지 잡아챈다.
+  // 마우스와 동일하게 '실제로 누를 수 있는' 요소만 대상으로 삼는다.
+  function handClickable(el){
+    if(!el || el.hidden || el.disabled) return false;
+    try{
+      if(!el.getClientRects || !el.getClientRects().length) return false;
+      var node = el, hops = 0;
+      while(node && node.nodeType === 1 && hops++ < 40){
+        var cs = window.getComputedStyle(node);
+        if(!cs) break;
+        if(cs.display === 'none' || cs.visibility === 'hidden' || cs.pointerEvents === 'none') return false;
+        node = node.parentElement;
+ }
+    }catch(e){ return true; }   // 판정 불가하면 기존처럼 클릭 가능으로 둔다
+    return true;
+ }
   function handHover(px, py){
     var raw = (px >= 0 && py >= 0) ? document.elementFromPoint(px, py) : null;
     var t = (raw && raw.closest)
@@ -2355,7 +2389,12 @@ window.OBSERVER_startEye = async function(){
       var el = candidates[i];
       if(el && el.scrollHeight > el.clientHeight + 1) return el;
     }
-    return candidates[0] || null;
+    // 넘치는 컨테이너가 없으면, 화면에 실제로 떠 있는 후보만 돌려준다.
+    // (시야 화면에서는 onboarding 이 display:none 이므로 null — 잡을 대상이 없다)
+    // 매 프레임 도는 경로이므로 값비싼 스타일 조회 대신 rect 유무만 본다.
+    var fb = candidates[0];
+    if(!fb || !fb.getClientRects || !fb.getClientRects().length) return null;
+    return fb;
  }
   var HAND_SCROLL_EDGE = 100, HAND_SCROLL_MAXSPD = 12;
   function handEdgeScroll(px, py, vh){
@@ -2373,10 +2412,10 @@ window.OBSERVER_startEye = async function(){
     var raw = document.elementFromPoint(px, py);
     var t = raw && raw.closest ? raw.closest(
       '.ep-btn, .epx, .bd-modal-x, .bd-demo-btn, .bd-demo-sw button, button, [role="button"], ' +
-      '.chip, .plan, .vfx-row, .flt-row, .lg-node, .job-group-toggle, .tab, ' +
+      '.chip, .plan, .vfx-row, .flt-row, .lg-node, .job-group-toggle, .tab, .bd-period button, '+
       '#sysList li, .panel-back, .speak-btn'
     ) : null;
-    if(t) return t;
+    if(t && handClickable(t)) return t;
 
     // 시야 오브젝트는 평상시 pointer-events:none이므로 elementFromPoint로 잡히지 않는다.
     // 실제 DOM 위치를 직접 비교해 블러 대상의 손 클릭을 지원한다.
@@ -2396,8 +2435,8 @@ window.OBSERVER_startEye = async function(){
   // 시작하지 않는다(기존 클릭 동작을 그대로 유지하기 위함).
   function handDragScroll(rawPy, px, py){
     var pinchNow = !!(window.EYE && window.EYE.hand && window.EYE.hand.pinch);
-    var rawPx = (window.EYE && window.EYE.hand && window.EYE.hand.rawX != null) ? window.EYE.hand.rawX * window.innerWidth : px;
-    var rawScreenPy = (window.EYE && window.EYE.hand && window.EYE.hand.rawY != null) ? window.EYE.hand.rawY * window.innerHeight : rawPy;
+    var rawPx = (window.EYE && window.EYE.hand && window.EYE.hand.clickX != null) ? window.EYE.hand.clickX * window.innerWidth : ((window.EYE && window.EYE.hand && window.EYE.hand.rawX != null) ? window.EYE.hand.rawX * window.innerWidth : px);
+    var rawScreenPy = (window.EYE && window.EYE.hand && window.EYE.hand.clickY != null) ? window.EYE.hand.clickY * window.innerHeight : ((window.EYE && window.EYE.hand && window.EYE.hand.rawY != null) ? window.EYE.hand.rawY * window.innerHeight : rawPy);
     if(pinchNow && !HAND.wasPinching){
       HAND.fistStartAt = performance.now();
       HAND.longGrab = false;
@@ -2411,7 +2450,7 @@ window.OBSERVER_startEye = async function(){
       var actualEl = document.elementFromPoint(rawPx, rawScreenPy);
       var actualBtn = actualEl && actualEl.closest ? actualEl.closest('.ghost-btn, #obBack') : null;
       function expandedHit(el, x, y, pad){
-        if(!el || el.hidden || el.disabled) return false;
+        if(!handClickable(el)) return false;
         var r = el.getBoundingClientRect();
         return x >= r.left-pad && x <= r.right+pad && y >= r.top-pad && y <= r.bottom+pad;
       }
@@ -2424,7 +2463,7 @@ window.OBSERVER_startEye = async function(){
         // 특히 나이/성별/직업 칩은 elementFromPoint 결과가 텍스트·컨테이너로 떨어질 수 있으므로
         // 칩 자체의 rect를 먼저 검사해 빠른 손 클릭이 확실히 들어가게 한다.
         var directTarget = null;
-        var directSelectors = '.chip, .job-group-toggle, .ghost-btn, .panel-back, .speak-btn, .tab, .plan, .vfx-row, .flt-row, .lg-node, #sysList li, [role="button"], button';
+        var directSelectors = '.chip, .job-group-toggle, .ghost-btn, .panel-back, .speak-btn, .tab, .bd-period button, .plan, .vfx-row, .flt-row, .lg-node, #sysList li, [role="button"], button';
         var directEls = document.querySelectorAll(directSelectors);
         for(var di=0; di<directEls.length; di++){
           var cand = directEls[di];
@@ -2432,15 +2471,14 @@ window.OBSERVER_startEye = async function(){
           if(cand === document.getElementById('bProfile')) pad = 28;
           if(expandedHit(cand, rawPx, rawScreenPy, pad)){ directTarget = cand; break; }
         }
-        if(HAND.target && HAND.target.matches && HAND.target.matches('button, [role="button"], .panel-back, .speak-btn, .tab, .plan, .vfx-row, .flt-row, .lg-node, .job-group-toggle, .chip, #sysList li, .ent.blurred')){
-          // 실제 좌표에서 다른 대상을 명확히 찾지 못했을 때만 시각 스냅 대상을 보조적으로 사용한다.
-          HAND.pinchButton = directTarget || HAND.target;
-        } else if(settingsBtn && expandedHit(settingsBtn, rawPx, rawScreenPy, settingsHitPad)) HAND.pinchButton = settingsBtn;
+        // 빠른 CLICK은 '실제 손 좌표' 또는 '이미 자석으로 붙은 대상'을 클릭 대상으로 확정한다.
+        // 스냅된 버튼을 놓치는 일이 없도록 HAND.target을 보조가 아니라 정식 target으로 사용한다.
+        if(directTarget) HAND.pinchButton = directTarget;
+        else if(settingsBtn && expandedHit(settingsBtn, rawPx, rawScreenPy, settingsHitPad)) HAND.pinchButton = settingsBtn;
         else if(NAV.primary && expandedHit(NAV.primary, rawPx, rawScreenPy, hitPad)) HAND.pinchButton = NAV.primary;
         else if(NAV.back && expandedHit(NAV.back, rawPx, rawScreenPy, backHitPad)) HAND.pinchButton = NAV.back;
-        else {
-          HAND.pinchButton = directTarget || handFindTarget(rawPx, rawScreenPy);
-        }
+        else if(HAND.target && HAND.target.matches && handClickable(HAND.target) && HAND.target.matches('button, [role="button"], .panel-back, .speak-btn, .tab, .plan, .vfx-row, .flt-row, .lg-node, .job-group-toggle, .chip, #sysList li, .ent.blurred, #hudSettingsBtn')) HAND.pinchButton = HAND.target;
+        else HAND.pinchButton = handFindTarget(rawPx, rawScreenPy);
       } else {
         HAND.pinchButton = null;
       }
@@ -2463,32 +2501,62 @@ window.OBSERVER_startEye = async function(){
       // 손을 펴는 과정에서 몇 px 벗어나도 짧은 click이 취소되지 않게 한다.
       // 반대로 긴 hold는 계속 GRAB/drag로만 처리한다.
       var pressDuration = HAND.fistStartAt ? (performance.now() - HAND.fistStartAt) : CLICK_GRAB_THRESHOLD;
-      var shouldClick = !HAND.dragMoved && !HAND.longGrab && pressDuration < CLICK_GRAB_THRESHOLD && !!clickTarget;
+      var world = document.getElementById('world');
+      var expNow = document.getElementById('experience');
+      // 마지막 시야 화면은 experience 레이어가 숨겨진 상태에서도 world가 보인다.
+      // 손 CLICK은 world 자체에 직접 전달되어 기존 시간차 팝업/시선차단 팝업을 실행해야 한다.
+      // 시야(experience) 레이어가 실제로 떠 있을 때만 월드 클릭으로 본다.
+      // 이 조건이 없으면 온보딩 중 빈 공간 주먹질이 뒤쪽 world 로 새어나가
+      // 보이지 않는 팝업이 생기고, 이후 시야 클릭이 영구히 막힌다.
+      var expVisible = !!expNow && !expNow.hidden;
+      var worldVisible = !!world && expVisible && !inSystem && !inPanel && !world.querySelector('.ent-pop-wrap');
+      // 시야 화면에서는 별도 버튼 target이 없어도 빠른 CLICK 자체가 월드 클릭이 된다.
+      // 단, 실제 UI 버튼/설정이 핀치 시작 시 선택되었다면 그 target이 우선한다.
+      var visionClick = worldVisible && !clickTarget;
+      // 시야 화면은 끌어서 스크롤할 대상 자체가 없다. 주먹을 또박또박 쥐었다 펴는
+      // (= 450ms 를 넘기는) 자연스러운 동작도 클릭으로 인정해야 한다.
+      var shouldClick = !HAND.dragMoved && (
+        (!!clickTarget && !HAND.longGrab && pressDuration < CLICK_GRAB_THRESHOLD) || visionClick
+      );
       HAND.dragging = false; HAND.dragTarget = null; HAND.dragMoved = false; HAND.pinchButton = null;
       HAND.fistStartAt = 0; HAND.longGrab = false;
       if(shouldClick && nowMs - HAND.lastClickAt >= HAND.COOLDOWN){
         HAND.lastClickAt = nowMs;
-        if(clickTarget && clickTarget.id === 'hudSettingsBtn'){ clickTarget.click(); }
-        else if(clickTarget === NAV.back){ navGo('back'); }
-        else if(clickTarget === NAV.primary){ if(!NAV.primary.disabled) navGo('next'); }
-        else if(clickTarget && typeof clickTarget.click === 'function'){
-          // 핀치 시작 순간에 확정한 대상을 그대로 클릭한다.
-          // release 시점 elementFromPoint()를 다시 조회하지 않아 손가락이 펴지며
-          // 좌표가 흔들려도 버튼/Timeline/오브젝트 클릭이 취소되지 않는다.
-          NAV.bypass = true; clickTarget.click(); NAV.bypass = false;
-        } else {
-          // 마지막 안전망: 시야 화면의 실제 마우스 동작과 동일하게 world 클릭을 전달한다.
-          var world = document.getElementById('world');
-          var expNow = document.getElementById('experience');
-          var worldVisible = world && expNow && expNow.hidden && !inSystem && !inPanel &&
-            !world.querySelector('.ent-pop-wrap');
-          if(worldVisible){ world.click(); }
-        }
+        // clickTarget 이 null 일 때 NAV.back / NAV.primary 도 null 이면
+        // (시야 화면에서는 goExperience 가 둘 다 null 로 비운다) null === null 이
+        // 성립해 navGo('back') 로 새어나가고, navGo 는 조용히 return 해버린다.
+        // 그래서 반드시 clickTarget 이 있을 때만 NAV 분기를 태운다.
+        if(clickTarget){
+          if(clickTarget.id === 'hudSettingsBtn'){ clickTarget.click(); }
+          else if(NAV.back && clickTarget === NAV.back){ navGo('back'); }
+          else if(NAV.primary && clickTarget === NAV.primary){ if(!NAV.primary.disabled) navGo('next'); }
+          else if(typeof clickTarget.click === 'function'){
+            // 핀치 시작 순간에 확정한 대상을 그대로 클릭한다.
+            // release 시점 elementFromPoint()를 다시 조회하지 않아 손가락이 펴지며
+            // 좌표가 흔들려도 버튼/Timeline/오브젝트 클릭이 취소되지 않는다.
+            NAV.bypass = true; clickTarget.click(); NAV.bypass = false;
+ }
+        } else if(visionClick && world){
+          // 시야 화면: 화면 어디에서든 손 CLICK 을 월드 클릭으로 전달한다.
+          world.click();
+ }
       }
     }
     HAND.wasPinching = pinchNow;
   }
+  // 루프 본체에서 예외가 한 번이라도 새어나가면 requestAnimationFrame 이 다시
+  // 예약되지 않아 손 커서가 영구히 멈춘다. 본체를 감싸서 어떤 경우에도 다음
+  // 프레임이 반드시 예약되게 한다.
+  var HAND_LOOP_ERR = false, HAND_LOOP_ON = false;
   function handCursorLoop(){
+    if(!HAND_LOOP_ON) HAND_LOOP_ON = true;
+    try{ handCursorFrame(); }
+    catch(err){
+      if(!HAND_LOOP_ERR){ HAND_LOOP_ERR = true; try{ console.error('[hand] frame error', err); }catch(e){} }
+ }
+    requestAnimationFrame(handCursorLoop);
+ }
+  function handCursorFrame(){
     var cur = document.getElementById('handCursor');
     var E = window.EYE;
     var expEl = document.getElementById('experience');
@@ -2595,7 +2663,6 @@ window.OBSERVER_startEye = async function(){
       handHover(-1, -1);   // 손이 사라지면 hover 해제
       if(E && E.pinchSeq) HAND.pinchSeen = E.pinchSeq;   // 손이 사라진 동안의 pinch는 무시
  }
-    requestAnimationFrame(handCursorLoop);
  }
 
   function stageWelcome(){
