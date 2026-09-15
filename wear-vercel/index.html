@@ -253,7 +253,7 @@ html,body{
 .dcx-band em{ display:block; font-family:var(--eng); font-style:normal; font-size:var(--fs-body);
   font-weight:600; color:var(--dim); margin-bottom:5px; }
 
-.dcx-rail{ position:relative; height:52px; margin-top:34px; }
+.dcx-rail{ position:relative; height:52px; margin-top:20px; }
 .dcx-seg{ position:absolute; top:0; bottom:0; cursor:pointer;
   background:var(--line); overflow:hidden;
   transition:background .28s ease, box-shadow .28s ease; }
@@ -292,7 +292,7 @@ html,body{
   .dcx-seg u{ left:6px; }
   .dcx-big{ gap:8px; }
   .dcx-band{ padding-left:12px; }
-  .dcx-rail{ margin-top:28px; }
+  .dcx-rail{ margin-top:14px; }
   .dcx-mark b{ padding:2px 5px; }
 }
 
@@ -820,7 +820,7 @@ html,body{
 .vc-chip .dot{ background:var(--dim); }
 .vc-chip.listening .dot{ background:var(--amber); box-shadow:0 0 0 4px rgba(205,67,44,.16); }
 .vc-chip.listening .lbl{ color:var(--amber); }
-@media (max-width:760px){ .vc-chip{ top:auto; bottom:96px; right:12px; left:auto; box-sizing:border-box; max-width:calc(100vw - 24px); min-width:0; overflow:hidden; } .vc-chip .lbl{ min-width:0; max-width:100%; white-space:normal; overflow-wrap:anywhere; word-break:keep-all; } }
+@media (max-width:760px){ .vc-chip{ top:auto; bottom:96px; right:12px; left:auto; box-sizing:border-box; width:max-content; max-width:calc(100vw - 24px); min-width:0; overflow:hidden; } .vc-chip .lbl{ min-width:0; max-width:100%; white-space:normal; overflow-wrap:anywhere; word-break:keep-all; } }
 .cam-chip[hidden], .aud-chip[hidden]{ display:none; }
 
 /* 손 커서 — 검지 끝을 따라다니는 점 + 링 */
@@ -1332,6 +1332,9 @@ button, input, textarea, select { font:inherit; }
   .calib-track{ left:16%; right:16%; }
 }
 @media (max-width:440px){
+  .cam-chip, .aud-chip{ max-width:calc(100dvw - 24px); box-sizing:border-box; }
+  .cam-chip .lbl, .aud-chip .lbl{ white-space:normal; overflow-wrap:anywhere; word-break:keep-all; text-align:center; }
+  .world-hint{ max-width:calc(100dvw - 28px); white-space:normal; text-align:center; justify-content:center; }
   /* 440px 이하에서는 음성 상태 칩이 뷰포트를 덮지 않도록 실제 화면 폭 안에 고정한다. */
   .vc-chip{
     box-sizing:border-box;
@@ -1482,6 +1485,14 @@ window.EYE = { supported:true, active:false, ready:false, closed:false, score:0,
   // pinch=엄지+검지 붙음, pinchSeq=집는 순간 1 증가(클릭 엣지).
   hand:{ present:false, x:0.5, y:0.5, gx:0.5, scrollY:0.5, pinch:false }, pinchSeq:0, handReady:false };
 
+window.OBSERVER_cameraPermission = async function(){
+  if(!navigator.permissions || !navigator.permissions.query) return 'unknown';
+  try{
+    const status = await navigator.permissions.query({name:'camera'});
+    return status.state || 'unknown';
+  }catch(e){ return 'unknown'; }
+};
+
 window.OBSERVER_startEye = async function(){
   const EYE = window.EYE;
   if(EYE.active) return true;
@@ -1494,9 +1505,10 @@ window.OBSERVER_startEye = async function(){
     stream = await navigator.mediaDevices.getUserMedia({ video:{ width:320, height:240, facingMode:'user' } });
  }catch(err){
     EYE.errCode = (err && err.name) || 'UnknownError';
-    EYE.error = (EYE.errCode === 'NotAllowedError')
+    EYE.error = (EYE.errCode === 'NotAllowedError' || EYE.errCode === 'SecurityError')
       ? '카메라 권한이 거부되었습니다.'
-      : (EYE.errCode === 'NotFoundError' ? '카메라를 찾을 수 없습니다.' : '카메라를 열 수 없습니다.');
+      : (EYE.errCode === 'NotFoundError' ? '카메라를 찾을 수 없습니다.'
+      : (EYE.errCode === 'NotReadableError' ? '카메라가 다른 앱에서 사용 중입니다.' : '카메라를 열 수 없습니다.'));
     return false;
  }
   video.srcObject = stream;
@@ -2475,6 +2487,14 @@ window.OBSERVER_startEye = async function(){
     );
     var btn = document.getElementById('bCam');
     var err = document.getElementById('camErr');
+    if(!envNote() && window.OBSERVER_cameraPermission){
+      window.OBSERVER_cameraPermission().then(function(state){
+        if(state === 'denied'){
+          err.style.display = 'block';
+          err.textContent = '이 사이트의 카메라 권한이 차단되어 있습니다. 브라우저 설정에서 카메라를 허용한 뒤 다시 시도하세요.';
+        }
+      }).catch(function(){});
+    }
     btn.onclick = function(){
       btn.disabled = true; btn.textContent = '눈을 찾는 중…';
       var wait = 0;
@@ -2489,16 +2509,20 @@ window.OBSERVER_startEye = async function(){
  }).catch(function(){ fail('카메라를 열 수 없습니다.'); });
  })();
  };
-    function fail(msg){
+    async function fail(msg){
       btn.disabled = false; btn.textContent = '다시 시도';
       err.style.display = 'block';
       var why = envNote();
-      if(!why && (window.EYE && window.EYE.errCode === 'NotAllowedError')){
-        why = '브라우저 주소창의 카메라 아이콘에서 이 사이트를 허용으로 바꾼 뒤 다시 시도하세요.';
- }
+      var perm = 'unknown';
+      try{ perm = window.OBSERVER_cameraPermission ? await window.OBSERVER_cameraPermission() : 'unknown'; }catch(e){}
+      if(!why && (window.EYE && (window.EYE.errCode === 'NotAllowedError' || window.EYE.errCode === 'SecurityError'))){
+        why = perm === 'denied'
+          ? '브라우저 설정에서 이 사이트의 카메라 권한을 허용으로 바꾼 뒤 다시 시도하세요.'
+          : '브라우저에서 카메라 권한을 허용한 뒤 다시 시도하세요.';
+      }
       err.innerHTML = msg + (why ? '<br>' + why : '') +
-        '<br>카메라 없이는 진행할 수 없습니다. 허용한 뒤 다시 시도하세요.<br>' + envDiag();
- }
+        '<br>카메라 없이 이 단계는 진행할 수 없습니다.<br>' + envDiag();
+    }
  }
 
   function inFrame(){
@@ -4396,6 +4420,26 @@ window.OBSERVER_startEye = async function(){
      기존 filtered object의 계속 가림 / 블러 풀기 로직을 그대로 사용한다. */
   function layerByKey(k){ for(var i=0;i<VIEW_LAYERS.length;i++){ if(VIEW_LAYERS[i].key===k) return VIEW_LAYERS[i]; } return {}; }
   var adRevealed = false; // 광고(vehicle) 블러가 이미 풀려있는지 — 팝업을 다시 열어도 상태가 유지된다
+  // 블러 해제 영상은 팝업을 여는 순간 미리 로드해 두어 '블러 풀기' 클릭 지연을 줄인다.
+  function preloadReleaseVideo(){
+    var src = (window.matchMedia && window.matchMedia('(max-width: 760px)').matches && window.__RELEASE_VIDEO_MOBILE__)
+      ? window.__RELEASE_VIDEO_MOBILE__ : window.__RELEASE_VIDEO__;
+    if(!src) return null;
+    if(window.__RELEASE_PRELOADER__ && window.__RELEASE_PRELOADER__.src && window.__RELEASE_PRELOADER__.src.indexOf(src) !== -1){
+      return window.__RELEASE_PRELOADER__;
+    }
+    var pre = document.createElement('video');
+    pre.muted = true; pre.playsInline = true; pre.preload = 'auto';
+    pre.setAttribute('playsinline',''); pre.setAttribute('webkit-playsinline','');
+    pre.src = src;
+    try{ pre.load(); }catch(e){}
+    pre.style.position='fixed'; pre.style.width='1px'; pre.style.height='1px';
+    pre.style.opacity='0'; pre.style.pointerEvents='none'; pre.style.left='-9999px'; pre.style.top='-9999px';
+    document.body.appendChild(pre);
+    window.__RELEASE_PRELOADER__ = pre;
+    return pre;
+  }
+
   function openObjectPopup(kind){
     var world = document.getElementById('world');
     if(!world) return;
@@ -4442,6 +4486,8 @@ window.OBSERVER_startEye = async function(){
     var wv = document.getElementById('worldVideo');
     var pausedAt = wv ? (wv.currentTime || 0) : 0;
     if(wv){ try{ wv.pause(); }catch(e){} }
+    // 팝업을 읽는 동안 해제 영상을 미리 네트워크 캐시/디코더에 준비한다.
+    preloadReleaseVideo();
     var changed = false; // 이 팝업에서 상태가 바뀌어(해제/차단) 영상 재생을 이어가야 하는 경우
 
     function close(){
@@ -4518,6 +4564,10 @@ window.OBSERVER_startEye = async function(){
   function playReleaseVideo(fromT){
     var wv = document.getElementById('worldVideo');
     if(!wv || !window.__RELEASE_VIDEO__) return;
+    var releaseSrc = (window.matchMedia && window.matchMedia('(max-width: 760px)').matches && window.__RELEASE_VIDEO_MOBILE__)
+      ? window.__RELEASE_VIDEO_MOBILE__ : window.__RELEASE_VIDEO__;
+    var pre = window.__RELEASE_PRELOADER__;
+    // 같은 소스를 미리 로드해 둔 경우에는 브라우저 캐시를 그대로 사용하고 메타데이터를 기다리기만 한다.
     var seekAndPlay = function(){
       try{
         var d = wv.duration;
@@ -4525,11 +4575,17 @@ window.OBSERVER_startEye = async function(){
       }catch(e){}
       var p = wv.play(); if(p && p.catch) p.catch(function(){});
     };
-    wv.addEventListener('loadedmetadata', seekAndPlay, { once:true });
-    var releaseSrc = (window.matchMedia && window.matchMedia('(max-width: 760px)').matches && window.__RELEASE_VIDEO_MOBILE__)
-      ? window.__RELEASE_VIDEO_MOBILE__ : window.__RELEASE_VIDEO__;
     wv.src = releaseSrc;
-    wv.load();
+    if(pre && pre.readyState >= 1 && pre.src && pre.src.indexOf(releaseSrc) !== -1){
+      try{
+        if(pre.currentTime === 0){ /* metadata만으로도 캐시를 예열한다 */ }
+      }catch(e){}
+      wv.addEventListener('loadedmetadata', seekAndPlay, { once:true });
+      try{ wv.load(); }catch(e){}
+    } else {
+      wv.addEventListener('loadedmetadata', seekAndPlay, { once:true });
+      try{ wv.load(); }catch(e){}
+    }
   }
 
   /* ---------- 타인 시선 일시 차단 (사람 클릭) ---------- */
@@ -4865,6 +4921,8 @@ window.OBSERVER_startEye = async function(){
  });
  }
 
+  var SHIELD_DIRTY = false;
+
   function wireShield(){
     var draftBlocked = {}, draftExpose = {};
     VIEW_LAYERS.forEach(function(l){ draftBlocked[l.key] = !!S.blocked[l.key]; });
@@ -4878,6 +4936,7 @@ window.OBSERVER_startEye = async function(){
       return dirty;
  }
     function refreshSummary(){
+      SHIELD_DIRTY = isDirty();
       var cols = document.getElementById('shieldCols');
       if(cols) cols.innerHTML = shieldContractCols(draftBlocked, draftExpose);
       if(saveBtn) saveBtn.disabled = !isDirty();
@@ -4899,6 +4958,7 @@ window.OBSERVER_startEye = async function(){
         paintHud();
         refreshMenuValues();
         pushFeed('<span class="p">SHIELD 저장</span> 필터 설정이 반영되었습니다');
+        SHIELD_DIRTY = false;
         saveBtn.disabled = true;
         showToast('저장되었습니다', document.getElementById('system'));
         closePanel();
@@ -4972,6 +5032,10 @@ window.OBSERVER_startEye = async function(){
       alert('저장하지 않은 변경사항이 있습니다. 저장 후 닫아주세요.');
       return;
  }
+    if(currentPanel === 'shield' && SHIELD_DIRTY){
+      alert('저장하지 않은 변경사항이 있습니다. 저장 후 닫아주세요.');
+      return;
+ }
     closePanel();
  }
 
@@ -4983,6 +5047,8 @@ window.OBSERVER_startEye = async function(){
     if(sx) sx.style.visibility = '';
     inPanel = false;
     currentPanel = null;
+    HOLD_DIRTY = false;
+    SHIELD_DIRTY = false;
     refreshMenuValues();
  }
 
